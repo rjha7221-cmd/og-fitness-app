@@ -103,6 +103,7 @@ if (!fs.existsSync(DATA_DIR)) {
 const MEMBERS_FILE = path.join(DATA_DIR, 'members.json');
 const ATTENDANCE_FILE = path.join(DATA_DIR, 'attendance.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+const EXPENSES_FILE = path.join(DATA_DIR, 'expenses.json');
 
 const DEFAULT_SETTINGS = {
   ownerName: 'Rishi Jha',
@@ -235,6 +236,16 @@ function saveStoredSettings(settings) {
   fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8');
 }
 
+function getStoredExpenses() {
+  if (fs.existsSync(EXPENSES_FILE)) {
+    try { return JSON.parse(fs.readFileSync(EXPENSES_FILE, 'utf8')); } catch (e) {}
+  }
+  return [];
+}
+function saveStoredExpenses(expenses) {
+  fs.writeFileSync(EXPENSES_FILE, JSON.stringify(expenses, null, 2), 'utf8');
+}
+
 function generateExpiryReminderText(member, gymName, gymPhone, daysRemaining) {
   let urgency = 'khatam ho chuki hai';
   if (daysRemaining === 2) urgency = '2 din me';
@@ -325,6 +336,54 @@ async function processDailyWhatsAppReminders(forceAll = false) {
   return { success: true, ...results };
 }
 
+async function processDailyBirthdayWishes() {
+  const settings = getStoredSettings();
+  const wa = settings.whatsapp || {};
+  if (!wa.instanceId || !wa.token) return { success: false, sent: 0 };
+
+  const members = getStoredMembers();
+  const todayStr = getTodayStrIST(); // YYYY-MM-DD
+  const currentMonthDay = todayStr.slice(5); // MM-DD
+  const currentYear = todayStr.slice(0, 4);
+
+  let sent = 0;
+  for (const m of members) {
+    if (!m.dob || !m.phone) continue;
+    const memberMonthDay = m.dob.slice(5);
+    if (memberMonthDay === currentMonthDay && m.lastBirthdayWishYear !== currentYear) {
+      const wishText = 
+        `🎉 *HAPPY BIRTHDAY ${m.name.toUpperCase()} JI!* 🎂\n\n` +
+        `OG Fitness family ki taraf se aapko janamdin ki dher saari shubhkamnayein!\n\n` +
+        `Bhagwan aapko hamesha fit, healthy aur strong rakhe. Apne transformation goals achieve karte rahiye! 💪\n\n` +
+        `Stay Hard & Keep Grinding! 🏋️‍♂️\n` +
+        `— *${settings.gymName || 'OG FITNESS'} Team*`;
+
+      try {
+        await sendWhatsAppViaUltraMsg(wa.instanceId, wa.token, m.phone, wishText);
+        m.lastBirthdayWishYear = currentYear;
+        sent++;
+        broadcastToClients({
+          type: 'WHATSAPP_AUTO_SENT',
+          data: {
+            memberId: m.id,
+            memberName: m.name,
+            phone: m.phone,
+            note: 'Birthday Wish Sent 🎂',
+            sentTime: new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })
+          }
+        });
+      } catch (e) {
+        console.error('[Birthday Engine] Error sending wish:', e.message);
+      }
+    }
+  }
+
+  if (sent > 0) {
+    saveStoredMembers(members);
+  }
+  return { success: true, sent };
+}
+
 let lastAutoSendDate = '';
 function startDailyReminderScheduler() {
   setInterval(async () => {
@@ -346,6 +405,8 @@ function startDailyReminderScheduler() {
         console.log(`[WhatsApp Auto-Scheduler] Running daily morning reminder check for ${todayStr}...`);
         const result = await processDailyWhatsAppReminders(false);
         console.log(`[WhatsApp Auto-Scheduler] Sent: ${result.sentCount}, Skipped: ${result.skippedCount}`);
+        const bdayResult = await processDailyBirthdayWishes();
+        console.log(`[Birthday Engine] Sent: ${bdayResult.sent || 0}`);
       }
     } catch (e) {
       console.error('[WhatsApp Auto-Scheduler] Error:', e.message);
@@ -685,6 +746,109 @@ const server = http.createServer((req, res) => {
 
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify({ success: true, message: `WhatsApp reminder sent to ${member.name}!`, data: resp }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 9. API: Expenses CRUD
+  if (pathname === '/api/expenses' && req.method === 'GET') {
+    const expenses = getStoredExpenses();
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify(expenses));
+    return;
+  }
+
+  if (pathname === '/api/expenses' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const expense = JSON.parse(body);
+        if (!expense.id) expense.id = 'exp-' + Date.now();
+        if (!expense.date) expense.date = getTodayStrIST();
+        const expenses = getStoredExpenses();
+        expenses.unshift(expense);
+        saveStoredExpenses(expenses);
+
+        broadcastToClients({
+          type: 'EXPENSE_ADDED',
+          data: expense
+        });
+
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: true, expense }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Invalid JSON payload' }));
+      }
+    });
+    return;
+  }
+
+  if (pathname === '/api/expenses/delete' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const { expenseId } = JSON.parse(body);
+        const expenses = getStoredExpenses();
+        const updated = expenses.filter(e => e.id !== expenseId);
+        saveStoredExpenses(updated);
+
+        broadcastToClients({
+          type: 'EXPENSE_DELETED',
+          data: { expenseId }
+        });
+
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: true, message: 'Expense deleted successfully' }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Invalid JSON payload' }));
+      }
+    });
+    return;
+  }
+
+  // 10. API: Send Custom WhatsApp Message (Receipts, Diet Plans, Absentee Nudges)
+  if (pathname === '/api/whatsapp/send-custom' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const { phone, message, title } = JSON.parse(body || '{}');
+        const settings = getStoredSettings();
+        const wa = settings.whatsapp || {};
+
+        if (!phone || !message) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ success: false, error: 'Phone number aur message required hain.' }));
+          return;
+        }
+
+        if (!wa.instanceId || !wa.token) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ success: false, error: 'UltraMsg Gateway connect nahi hai. Settings me credentials save karein ya 1-Click WhatsApp use karein.' }));
+          return;
+        }
+
+        const resp = await sendWhatsAppViaUltraMsg(wa.instanceId, wa.token, phone, message);
+
+        broadcastToClients({
+          type: 'WHATSAPP_AUTO_SENT',
+          data: {
+            phone,
+            note: title || 'Custom WhatsApp Sent',
+            sentTime: new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })
+          }
+        });
+
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: true, message: 'WhatsApp message successfully sent!', data: resp }));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
         res.end(JSON.stringify({ success: false, error: err.message }));

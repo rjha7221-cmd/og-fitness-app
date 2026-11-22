@@ -6,7 +6,8 @@ const DB_KEYS = {
   ATTENDANCE: 'og_attendance',
   PLANS: 'og_plans',
   PAYMENTS: 'og_payments',
-  SETTINGS: 'og_gym_settings'
+  SETTINGS: 'og_gym_settings',
+  EXPENSES: 'og_expenses'
 };
 
 function getTodayDateString() {
@@ -81,6 +82,16 @@ async function initializeDatabase() {
       const serverAtt = await resAtt.json();
       if (Array.isArray(serverAtt) && serverAtt.length > 0) {
         localStorage.setItem(DB_KEYS.ATTENDANCE, JSON.stringify(serverAtt));
+      }
+    }
+  } catch (e) {}
+
+  try {
+    const resExp = await fetch('/api/expenses');
+    if (resExp.ok) {
+      const serverExp = await resExp.json();
+      if (Array.isArray(serverExp)) {
+        localStorage.setItem(DB_KEYS.EXPENSES, JSON.stringify(serverExp));
       }
     }
   } catch (e) {}
@@ -548,6 +559,8 @@ function showMemberIdCard(memberId) {
   const member = members.find(m => m.id === memberId);
   if (!member) return;
 
+  currentActiveCardMemberId = member.id;
+
   const cardModal = document.getElementById('id-card-modal');
   if (!cardModal) return;
 
@@ -626,6 +639,11 @@ function renderAllViews() {
   renderExpiryAlerts();
   renderMembersTable();
   renderDailyReportForDate(selectedReportDate);
+  renderBirthdayBanner();
+  renderInactiveMembers();
+  populateDietMemberSelect();
+  renderDietPlanCanvas();
+  renderExpensesView();
 }
 
 // Dashboard Period State & Filter Engine
@@ -1025,6 +1043,9 @@ function renderMembersTable(
           <div class="flex items-center justify-end gap-1.5">
             <button onclick="showMemberIdCard('${m.id}')" title="View Pass & QR" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-orange-50 hover:text-orange-600 text-slate-600 border border-slate-200 flex items-center justify-center transition shadow-sm">
               <i class="fa-solid fa-qrcode text-xs"></i>
+            </button>
+            <button onclick="openReceiptModal('${m.id}')" title="Fees Receipt / WhatsApp Bill" class="w-8 h-8 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 flex items-center justify-center transition shadow-sm">
+              <i class="fa-solid fa-receipt text-xs"></i>
             </button>
             <button onclick="sendWhatsAppReminder('${m.id}')" title="Send WhatsApp Message" class="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center justify-center transition shadow-sm">
               <i class="fa-brands fa-whatsapp text-sm"></i>
@@ -1819,6 +1840,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const phone = document.getElementById('form-phone').value.trim();
       const gender = document.getElementById('form-gender').value;
       const age = parseInt(document.getElementById('form-age')?.value) || 25;
+      const dob = document.getElementById('form-dob')?.value || '';
+      const paymentMode = document.getElementById('form-payment-mode')?.value || 'UPI';
       const planId = planSelect.value;
       const plans = getPlans();
       const plan = plans.find(p => p.id === planId);
@@ -1833,6 +1856,8 @@ document.addEventListener('DOMContentLoaded', () => {
         phone,
         gender,
         age,
+        dob,
+        paymentMode,
         planId,
         planName: plan?.name || 'Standard Plan',
         joinDate,
@@ -2121,4 +2146,881 @@ function printTableStandee() {
     document.body.classList.remove('print-standee');
   }, 1000);
 }
+
+// ========================================================
+// CORE SUPER-GYM SUITE: 5 FEATURES IMPLEMENTATION
+// ========================================================
+
+// Generic 1-Click WhatsApp Sender (UltraMsg Server Gateway + wa.me Fallback)
+async function sendCustomWhatsAppMessage(phone, message, title = 'WhatsApp Message') {
+  let cleanPhone = String(phone).replace(/\D/g, '');
+  if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+
+  // 1. Try automated background gateway first
+  try {
+    const res = await fetch('/api/whatsapp/send-custom', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: cleanPhone, message, title })
+    });
+    const result = await res.json();
+    if (result.success) {
+      showNotification(`📲 WhatsApp sent to +${cleanPhone}!`, 'success');
+      return true;
+    }
+  } catch (e) {}
+
+  // 2. Direct 1-Click Fallback to WhatsApp Web / Mobile App
+  const encoded = encodeURIComponent(message);
+  window.open(`https://wa.me/${cleanPhone}?text=${encoded}`, '_blank');
+  showNotification(`📲 Opening WhatsApp for +${cleanPhone}...`, 'info');
+  return true;
+}
+
+// --------------------------------------------------------
+// FEATURE 1: 1-Click WhatsApp Fees Receipt / Bill & Slip
+// --------------------------------------------------------
+let currentReceiptMember = null;
+let currentActiveCardMemberId = null;
+
+function buildReceiptText(member, receiptNo) {
+  const settings = getGymSettings();
+  const gymName = settings.gymName || 'OG Fitness';
+  const phone = settings.phone || '9876543210';
+  const total = (member.feesTotal || 0).toLocaleString('en-IN');
+  const paid = (member.feesPaid || 0).toLocaleString('en-IN');
+  const due = Math.max(0, (member.feesTotal || 0) - (member.feesPaid || 0));
+  const dueStr = due > 0 ? `₹${due.toLocaleString('en-IN')} (Pending)` : `₹0 (Paid in Full ✅)`;
+  const payMode = member.paymentMode || 'UPI';
+
+  return `🧾 *${gymName.toUpperCase()} - OFFICIAL PAYMENT RECEIPT* 🧾\n` +
+    `----------------------------------------\n` +
+    `*Receipt No:* ${receiptNo}\n` +
+    `*Date:* ${TODAY_STR}\n` +
+    `*Member Name:* ${member.name}\n` +
+    `*Member ID:* ${member.id}\n` +
+    `*Contact:* +91 ${member.phone}\n` +
+    `----------------------------------------\n` +
+    `*Plan:* ${member.planName}\n` +
+    `*Valid:* ${member.joinDate} to ${member.expiryDate}\n` +
+    `*Total Fees:* ₹${total}\n` +
+    `*Amount Paid:* ₹${paid} (${payMode})\n` +
+    `*Balance Due:* ${dueStr}\n` +
+    `----------------------------------------\n` +
+    `_Thank you for choosing ${gymName}! Sweat Today, Smile Tomorrow._ 💪🔥\n` +
+    `Gym Helpline: ${phone}`;
+}
+
+function openReceiptModal(memberId) {
+  const members = getMembers();
+  const member = members.find(m => m.id === memberId);
+  if (!member) return;
+
+  currentReceiptMember = member;
+  const settings = getGymSettings();
+  const receiptNo = `RCP-${TODAY_STR.replace(/-/g, '')}-${member.id}`;
+
+  const gymNameEl = document.getElementById('receipt-gym-name');
+  const gymAddrEl = document.getElementById('receipt-gym-address');
+  const receiptNoEl = document.getElementById('receipt-no');
+  const receiptDateEl = document.getElementById('receipt-date');
+  const nameEl = document.getElementById('receipt-member-name');
+  const phoneEl = document.getElementById('receipt-member-phone');
+  const idEl = document.getElementById('receipt-member-id');
+  const planEl = document.getElementById('receipt-member-plan');
+  const rowPlanEl = document.getElementById('receipt-row-plan');
+  const rowValidityEl = document.getElementById('receipt-row-validity');
+  const rowTotalEl = document.getElementById('receipt-row-total');
+  const payModeEl = document.getElementById('receipt-payment-mode');
+  const rowPaidEl = document.getElementById('receipt-row-paid');
+  const rowDueEl = document.getElementById('receipt-row-due');
+
+  if (gymNameEl) gymNameEl.textContent = settings.gymName || 'OG FITNESS';
+  if (gymAddrEl) gymAddrEl.textContent = settings.address || 'City Center, Main Road';
+  if (receiptNoEl) receiptNoEl.textContent = receiptNo;
+  if (receiptDateEl) receiptDateEl.textContent = TODAY_STR;
+  if (nameEl) nameEl.textContent = member.name;
+  if (phoneEl) phoneEl.textContent = '+91 ' + member.phone;
+  if (idEl) idEl.textContent = member.id;
+  if (planEl) planEl.textContent = member.planName;
+  if (rowPlanEl) rowPlanEl.textContent = `${member.planName} Membership`;
+  if (rowValidityEl) rowValidityEl.textContent = `Validity: ${member.joinDate} to ${member.expiryDate}`;
+  
+  const total = member.feesTotal || 0;
+  const paid = member.feesPaid || 0;
+  const due = Math.max(0, total - paid);
+
+  if (rowTotalEl) rowTotalEl.textContent = `₹${total.toLocaleString('en-IN')}`;
+  if (payModeEl) payModeEl.textContent = member.paymentMode || 'UPI';
+  if (rowPaidEl) rowPaidEl.textContent = `₹${paid.toLocaleString('en-IN')}`;
+  if (rowDueEl) rowDueEl.textContent = `₹${due.toLocaleString('en-IN')}`;
+
+  const modal = document.getElementById('receipt-modal');
+  if (modal) modal.classList.add('active');
+}
+
+function closeReceiptModal() {
+  const modal = document.getElementById('receipt-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function openReceiptModalForCurrentCard() {
+  if (currentActiveCardMemberId) {
+    openReceiptModal(currentActiveCardMemberId);
+  }
+}
+
+function printReceipt() {
+  document.body.classList.remove('print-report', 'print-id-card', 'print-standee', 'print-diet');
+  document.body.classList.add('print-receipt');
+  window.print();
+  setTimeout(() => document.body.classList.remove('print-receipt'), 1000);
+}
+
+async function sendReceiptViaWhatsApp() {
+  if (!currentReceiptMember) return;
+  const receiptNo = `RCP-${TODAY_STR.replace(/-/g, '')}-${currentReceiptMember.id}`;
+  const message = buildReceiptText(currentReceiptMember, receiptNo);
+  await sendCustomWhatsAppMessage(currentReceiptMember.phone, message, `Fee Receipt: ${currentReceiptMember.name}`);
+}
+
+// --------------------------------------------------------
+// FEATURE 2: Inactive / Absent Member Watchdog (Drop-out Prevention)
+// --------------------------------------------------------
+function getInactiveMembers(thresholdDays = 5) {
+  const members = getMembers();
+  const attendance = getAttendance();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const inactiveList = [];
+
+  members.forEach(member => {
+    // Only monitor active non-expired members
+    const daysRemaining = getDaysRemaining(member.expiryDate);
+    if (daysRemaining < 0) return;
+
+    // Find latest attendance punch
+    const memberPunches = attendance.filter(a => a.memberId === member.id && a.date);
+    let daysAbsent = 0;
+    let lastSeenText = '';
+
+    if (memberPunches.length > 0) {
+      memberPunches.sort((a, b) => new Date(b.date) - new Date(a.date));
+      const latestDateStr = memberPunches[0].date;
+      const latestDate = new Date(latestDateStr + 'T00:00:00');
+      const diffMs = today.getTime() - latestDate.getTime();
+      daysAbsent = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      lastSeenText = `${daysAbsent} din pehle (${latestDateStr})`;
+    } else {
+      const joinDate = new Date(member.joinDate + 'T00:00:00');
+      if (!isNaN(joinDate.getTime())) {
+        const diffMs = today.getTime() - joinDate.getTime();
+        daysAbsent = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        lastSeenText = `Kabhi nahi aaye (${daysAbsent} din se enrolled)`;
+      } else {
+        daysAbsent = 0;
+        lastSeenText = 'N/A';
+      }
+    }
+
+    if (daysAbsent >= thresholdDays) {
+      inactiveList.push({
+        ...member,
+        daysAbsent,
+        lastSeenText
+      });
+    }
+  });
+
+  inactiveList.sort((a, b) => b.daysAbsent - a.daysAbsent);
+  return inactiveList;
+}
+
+function renderInactiveMembers() {
+  const badge = document.getElementById('dashboard-absentee-badge');
+  const container = document.getElementById('dashboard-absentee-list');
+  if (!container) return;
+
+  const inactive = getInactiveMembers(5);
+  if (badge) badge.textContent = `${inactive.length} Absent`;
+
+  if (inactive.length === 0) {
+    container.innerHTML = `
+      <div class="p-3 text-center rounded-xl bg-white border border-amber-100 text-xs text-slate-500">
+        <i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i>
+        Sabhi members regular hain! 5+ dino se koi absent nahi hai.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = inactive.map(m => `
+    <div class="flex items-center justify-between p-2.5 rounded-xl bg-white border border-amber-200/80 shadow-2xs hover:border-amber-300 transition">
+      <div>
+        <div class="text-xs font-bold text-slate-900">${m.name}</div>
+        <div class="text-[10px] text-amber-700 font-medium">${m.daysAbsent} Din se Absent &bull; <span class="text-slate-400">${m.lastSeenText}</span></div>
+      </div>
+      <button onclick="sendAbsenteeNudge('${m.id}', ${m.daysAbsent})" class="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm transition">
+        <i class="fa-brands fa-whatsapp"></i>
+        <span>Nudge</span>
+      </button>
+    </div>
+  `).join('');
+}
+
+async function sendAbsenteeNudge(memberId, daysAbsent) {
+  const members = getMembers();
+  const member = members.find(m => m.id === memberId);
+  if (!member) return;
+
+  const settings = getGymSettings();
+  const gymName = settings.gymName || 'OG Fitness';
+
+  const message = `Namaste *${member.name}* Ji! 💪\n\n` +
+    `${gymName} me aapko miss kiya ja raha hai! Pichle *${daysAbsent} dino* se aap gym nahi aaye.\n\n` +
+    `Consistency is the key to real fitness results. Aaj workout par milte hain? Let's crush your goals together! 🔥🏋️\n\n` +
+    `- Team ${gymName}`;
+
+  await sendCustomWhatsAppMessage(member.phone, message, `Absentee Nudge: ${member.name}`);
+}
+
+// --------------------------------------------------------
+// FEATURE 3: Automatic Birthday Wish Engine
+// --------------------------------------------------------
+function getTodayBirthdays() {
+  const members = getMembers();
+  const todayMMDD = TODAY_STR.substring(5); // "MM-DD"
+  return members.filter(m => m.dob && m.dob.substring(5) === todayMMDD);
+}
+
+function renderBirthdayBanner() {
+  const banner = document.getElementById('dashboard-birthday-banner');
+  if (!banner) return;
+
+  const bdays = getTodayBirthdays();
+  if (bdays.length === 0) {
+    banner.classList.add('hidden');
+    banner.innerHTML = '';
+    return;
+  }
+
+  banner.classList.remove('hidden');
+  const names = bdays.map(m => `<b>${m.name}</b> (${m.id})`).join(', ');
+
+  banner.innerHTML = `
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white flex items-center justify-center text-lg shadow-sm flex-shrink-0 animate-bounce">
+        🎂
+      </div>
+      <div>
+        <div class="text-xs font-bold uppercase tracking-wider text-pink-700 flex items-center gap-1.5">
+          <span>🎉 Aaj ${bdays.length} Member${bdays.length > 1 ? 's' : ''} Ka Birthday Hai!</span>
+        </div>
+        <p class="text-xs text-slate-700 mt-0.5">${names}</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="sendBirthdayWishBatch()" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+        <i class="fa-brands fa-whatsapp text-sm"></i>
+        <span>Send Birthday Wishes</span>
+      </button>
+    </div>
+  `;
+}
+
+async function sendBirthdayWishBatch() {
+  const bdays = getTodayBirthdays();
+  if (bdays.length === 0) return;
+  for (const member of bdays) {
+    await sendBirthdayWish(member.id);
+  }
+}
+
+async function sendBirthdayWish(memberId) {
+  const members = getMembers();
+  const member = members.find(m => m.id === memberId);
+  if (!member) return;
+
+  const settings = getGymSettings();
+  const gymName = settings.gymName || 'OG Fitness';
+
+  const message = `🎂 *HAPPY BIRTHDAY ${member.name.toUpperCase()} JI!* 🎉🎈\n\n` +
+    `${gymName} ki poori team aur sabhi trainers ki taraf se aapko Janamdin ki dheron shubh-kamnayein!\n\n` +
+    `May this year bring you great health, unmatched strength, and unstoppable fitness gains! Stay disciplined, stay strong! 💪🔥\n\n` +
+    `- ${gymName} Family`;
+
+  await sendCustomWhatsAppMessage(member.phone, message, `Birthday Wish: ${member.name}`);
+}
+
+// --------------------------------------------------------
+// FEATURE 4: 1-Click Diet & Workout Plan Generator
+// --------------------------------------------------------
+const DIET_WORKOUT_PLANS = {
+  'fat-loss': {
+    title: 'Fat Loss & Lean Muscle Indian Diet Plan',
+    category: 'Nutrition & Diet',
+    calories: '1,600 - 1,800 kcal (Deficit)',
+    protein: '110g - 130g Protein',
+    target: 'Burn stubborn fat while preserving lean muscle',
+    water: '3.5 - 4 Litres daily',
+    meals: [
+      { time: '07:30 AM (Wake Up)', items: '1 Glass lukewarm lemon water + 5 Soaked almonds & 1 walnut' },
+      { time: '08:30 AM (Breakfast)', items: 'Oats porridge with skimmed milk & chia seeds OR 3 Boiled egg whites + 1 whole wheat toast' },
+      { time: '11:30 AM (Mid-Morning)', items: '1 Cup Green Tea + 1 Seasonal Fruit (Apple / Papaya / Guava) + Handful roasted chana' },
+      { time: '01:30 PM (Lunch)', items: '2 Multigrain rotis (no ghee) + 1 Bowl Yellow Dal + 100g Low-fat Paneer / Grilled Chicken Breast + Large green salad' },
+      { time: '05:00 PM (Pre-Workout)', items: '1 Cup Black Coffee (no sugar) + 1 Banana OR 2 Rice cakes' },
+      { time: '08:30 PM (Dinner)', items: '1 Large bowl mixed vegetable clear soup + 150g Sautéed paneer / tofu / soya chunks / fish + Cucumber slices' },
+      { time: '10:00 PM (Bedtime)', items: '1 Cup warm chamomile tea or cinnamon water' }
+    ],
+    guidelines: [
+      'Strictly avoid refined sugars, deep fried snacks, and carbonated cold drinks.',
+      'Maintain 10,000 steps daily outside gym workout for active fat burn.',
+      'Sleep minimum 7-8 hours for optimal hormonal balance.'
+    ]
+  },
+  'muscle-bulking': {
+    title: 'High Protein Muscle Bulking & Hypertrophy Diet Plan',
+    category: 'Nutrition & Diet',
+    calories: '2,600 - 2,900 kcal (Clean Surplus)',
+    protein: '140g - 160g Protein',
+    target: 'Gain solid muscle mass with minimal fat gain',
+    water: '4 - 5 Litres daily',
+    meals: [
+      { time: '07:30 AM (Wake Up)', items: 'High Calorie Shake: 300ml full cream milk + 1 Banana + 2 tbsp Peanut Butter + 40g Oats blended' },
+      { time: '09:00 AM (Breakfast)', items: '4 Whole eggs scrambled OR 150g Paneer bhurji + 2 Slices brown bread + Handful of soaked raisins & cashews' },
+      { time: '12:00 PM (Mid-Morning)', items: '1 Sweet potato boiled OR 1 Bowl boiled sprouts with lemon + Coconut water' },
+      { time: '02:00 PM (Lunch)', items: '3 Rotis + 1 Large bowl Rajma / Chhole + 150g Paneer / Chicken curry + 1 Bowl curd (Dahi) + Rice' },
+      { time: '05:30 PM (Pre-Workout)', items: '2 Bananas + 1 Cup black coffee + 2 Brown bread peanut butter toast' },
+      { time: '07:30 PM (Post-Workout)', items: '1 Scoop Whey Protein with water OR 4 Boiled egg whites + 1 Sweet potato' },
+      { time: '09:30 PM (Dinner)', items: '3 Rotis + 1 Bowl Soya chunks curry / grilled chicken + Dal tadka + Fresh salad' }
+    ],
+    guidelines: [
+      'Focus on progressive overload in every gym session.',
+      'Never skip your post-workout meal to maximize protein synthesis.',
+      'Take 5g Creatine Monohydrate daily with plenty of water.'
+    ]
+  },
+  'beginner-routine': {
+    title: '3-Day Beginner Full Body Strength Workout Routine',
+    category: 'Training Program',
+    frequency: '3 Days / Week (Monday - Wednesday - Friday)',
+    target: 'Build foundational strength, master form, and activate muscle fibers',
+    warmup: '5 mins treadmill walk + joint mobility arm/hip circles',
+    days: [
+      {
+        day: 'Day 1: Full Body Foundations A',
+        exercises: [
+          'Goblet Squats (Dumbbell) - 3 sets x 12 reps',
+          'Flat Dumbbell Bench Press - 3 sets x 10-12 reps',
+          'Lat Pulldowns (Wide Grip) - 3 sets x 12 reps',
+          'Seated Dumbbell Shoulder Press - 3 sets x 10 reps',
+          'Plank Hold - 3 sets x 30-45 seconds'
+        ]
+      },
+      {
+        day: 'Day 2: Full Body Foundations B',
+        exercises: [
+          'Romanian Deadlifts (Dumbbells) - 3 sets x 10 reps',
+          'Seated Cable Rows - 3 sets x 12 reps',
+          'Incline Dumbbell Press - 3 sets x 10-12 reps',
+          'Standing Dumbbell Bicep Curls - 3 sets x 12 reps',
+          'Cable Tricep Pushdowns - 3 sets x 12 reps'
+        ]
+      },
+      {
+        day: 'Day 3: Full Body Foundations C',
+        exercises: [
+          'Leg Press Machine - 3 sets x 12 reps',
+          'Dumbbell Walking Lunges - 3 sets x 10 steps/leg',
+          'Standing Overhead Barbell Press - 3 sets x 10 reps',
+          'Dumbbell Lateral Raises - 3 sets x 15 reps',
+          'Hanging Knee Raises / Ab Crunches - 3 sets x 15 reps'
+        ]
+      }
+    ],
+    guidelines: [
+      'Take 90 seconds rest between sets. Focus 100% on proper posture and controlled tempo.',
+      'End each session with 10 minutes steady-state cardio (Cycle or Elliptical).'
+    ]
+  },
+  'ppl-split': {
+    title: '6-Day Push-Pull-Legs (PPL) Athlete Hypertrophy Split',
+    category: 'Advanced Training Program',
+    frequency: '6 Days / Week (Push - Pull - Legs - Push - Pull - Legs - Rest)',
+    target: 'Maximum muscle hypertrophy and aesthetic physique development',
+    warmup: 'Rotator cuff warmups, band pull-aparts, bodyweight squats',
+    days: [
+      {
+        day: 'Push Day 1 (Chest / Shoulders / Triceps)',
+        exercises: [
+          'Barbell Flat Bench Press - 4 sets x 6-8 reps (Heavy)',
+          'Incline Dumbbell Press - 3 sets x 8-10 reps',
+          'Seated Overhead Dumbbell Press - 3 sets x 10 reps',
+          'Cable Chest Flyes - 3 sets x 12-15 reps',
+          'Dumbbell Lateral Raises - 4 sets x 15 reps (Strict)',
+          'Tricep Rope Pushdowns superset with Overhead Cable Extension - 3 sets x 12 reps'
+        ]
+      },
+      {
+        day: 'Pull Day 1 (Back / Rear Delts / Biceps)',
+        exercises: [
+          'Conventional Barbell Deadlifts / Rack Pulls - 4 sets x 5 reps',
+          'Wide-Grip Lat Pulldowns - 3 sets x 8-10 reps',
+          'Chest-Supported T-Bar Rows - 3 sets x 10-12 reps',
+          'Face Pulls (Rope) - 4 sets x 15 reps',
+          'Incline Dumbbell Bicep Curls - 3 sets x 10-12 reps',
+          'Hammer Curls (Forearms & Brachialis) - 3 sets x 12 reps'
+        ]
+      },
+      {
+        day: 'Leg Day 1 (Quads / Hamstrings / Calves)',
+        exercises: [
+          'Barbell Back Squats - 4 sets x 6-8 reps',
+          'Romanian Deadlifts (RDL) - 3 sets x 8-10 reps',
+          'Leg Press (Feet low & narrow for Quads) - 3 sets x 12 reps',
+          'Lying Hamstring Curls - 3 sets x 12-15 reps',
+          'Standing Machine Calf Raises - 4 sets x 15-20 reps',
+          'Hanging Leg Raises - 3 sets to failure'
+        ]
+      }
+    ],
+    guidelines: [
+      'Track your weights every week and aim for progressive overload (1 extra rep or 2.5kg more).',
+      'Sunday is dedicated strictly for rest and muscle recovery.'
+    ]
+  }
+};
+
+let currentDietPlanKey = 'fat-loss';
+let currentDietMemberId = '';
+
+function populateDietMemberSelect() {
+  const select = document.getElementById('diet-member-select');
+  if (!select) return;
+
+  const members = getMembers();
+  const currentVal = select.value;
+  select.innerHTML = '<option value="">-- Choose Member --</option>' +
+    members.map(m => `<option value="${m.id}">${m.name} (${m.id}) - ${m.planName}</option>`).join('');
+
+  if (currentVal && members.some(m => m.id === currentVal)) {
+    select.value = currentVal;
+    currentDietMemberId = currentVal;
+  }
+}
+
+function onDietMemberSelected(memberId) {
+  currentDietMemberId = memberId;
+  renderDietPlanCanvas();
+}
+
+function selectDietTemplate(planKey) {
+  currentDietPlanKey = planKey;
+
+  document.querySelectorAll('.diet-template-btn').forEach(btn => {
+    btn.classList.remove('bg-orange-500', 'text-white', 'border-orange-500');
+    btn.classList.add('bg-white', 'text-slate-700', 'border-slate-200');
+  });
+
+  const activeBtn = document.getElementById(`diet-tab-${planKey}`);
+  if (activeBtn) {
+    activeBtn.classList.remove('bg-white', 'text-slate-700', 'border-slate-200');
+    activeBtn.classList.add('bg-orange-500', 'text-white', 'border-orange-500');
+  }
+
+  renderDietPlanCanvas();
+}
+
+function renderDietPlanCanvas() {
+  const container = document.getElementById('printable-diet-plan');
+  if (!container) return;
+
+  const plan = DIET_WORKOUT_PLANS[currentDietPlanKey];
+  if (!plan) return;
+
+  const settings = getGymSettings();
+  const gymName = settings.gymName || 'OG FITNESS';
+  const members = getMembers();
+  const member = members.find(m => m.id === currentDietMemberId);
+
+  const memberName = member ? member.name : 'Gym Member';
+  const memberId = member ? member.id : 'OG-XXXX';
+  const memberPlan = member ? member.planName : 'Fitness Member';
+
+  let contentHtml = '';
+
+  if (plan.meals) {
+    contentHtml = `
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 rounded-xl bg-orange-50/60 border border-orange-200 text-xs">
+          <div><span class="text-slate-500 block">Daily Target:</span> <span class="font-bold text-slate-900">${plan.calories}</span></div>
+          <div><span class="text-slate-500 block">Protein Intake:</span> <span class="font-bold text-orange-600">${plan.protein}</span></div>
+          <div><span class="text-slate-500 block">Hydration:</span> <span class="font-bold text-sky-600">${plan.water}</span></div>
+        </div>
+
+        <div class="space-y-2.5">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+            <i class="fa-solid fa-utensils text-orange-600"></i> Meal-by-Meal Schedule:
+          </h4>
+          <div class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+            ${plan.meals.map(m => `
+              <div class="p-3 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                <span class="font-bold text-orange-700 sm:w-1/3 flex items-center gap-1.5">
+                  <i class="fa-regular fa-clock text-slate-400 text-[10px]"></i> ${m.time}
+                </span>
+                <span class="text-slate-700 sm:w-2/3">${m.items}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  } else if (plan.days) {
+    contentHtml = `
+      <div class="space-y-4">
+        <div class="p-3 rounded-xl bg-orange-50/60 border border-orange-200 text-xs flex flex-wrap justify-between gap-2">
+          <div><span class="text-slate-500 block">Frequency:</span> <span class="font-bold text-slate-900">${plan.frequency}</span></div>
+          <div><span class="text-slate-500 block">Target:</span> <span class="font-bold text-orange-600">${plan.target}</span></div>
+        </div>
+
+        <div class="space-y-3">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+            <i class="fa-solid fa-dumbbell text-orange-600"></i> Workout Routine Breakdown:
+          </h4>
+          <div class="grid grid-cols-1 gap-3">
+            ${plan.days.map(d => `
+              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <div class="font-bold text-xs text-orange-700 uppercase flex items-center gap-1.5">
+                  <i class="fa-solid fa-play text-[10px]"></i> ${d.day}
+                </div>
+                <ul class="space-y-1 pl-2 text-xs text-slate-700">
+                  ${d.exercises.map(ex => `<li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-orange-500 flex-shrink-0"></span> ${ex}</li>`).join('')}
+                </ul>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    <!-- Branded Header -->
+    <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-orange-600 text-white flex items-center justify-center font-bold text-lg">
+          <i class="fa-solid fa-dumbbell"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-black text-slate-900 leading-tight">${gymName}</h2>
+          <div class="text-[11px] text-slate-500">Certified Coaching & Workout Protocol</div>
+        </div>
+      </div>
+      <div class="text-right">
+        <div class="text-[10px] uppercase font-bold text-slate-400">Date Issued:</div>
+        <div class="font-mono text-xs font-bold text-slate-700">${TODAY_STR}</div>
+      </div>
+    </div>
+
+    <!-- Member Info Strip -->
+    <div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+      <div>
+        <span class="text-slate-400 text-[10px] uppercase font-semibold block">Member:</span>
+        <span class="font-bold text-slate-900 text-sm">${memberName}</span>
+        <span class="font-mono text-slate-500 text-[11px] ml-1.5">(${memberId})</span>
+      </div>
+      <div>
+        <span class="text-slate-400 text-[10px] uppercase font-semibold block">Plan:</span>
+        <span class="font-semibold text-slate-800">${memberPlan}</span>
+      </div>
+      <div>
+        <span class="text-slate-400 text-[10px] uppercase font-semibold block">Program Assigned:</span>
+        <span class="font-bold text-orange-600">${plan.title}</span>
+      </div>
+    </div>
+
+    <!-- Dynamic Content -->
+    ${contentHtml}
+
+    <!-- Guidelines & Coach Signature -->
+    <div class="pt-3 border-t border-dashed border-slate-200 space-y-2 text-xs">
+      <div class="text-[11px] text-slate-600 space-y-1">
+        <span class="font-bold text-slate-800">💡 Coach's Golden Rules:</span>
+        ${plan.guidelines.map(g => `<p class="text-[11px] text-slate-500">&bull; ${g}</p>`).join('')}
+      </div>
+      <div class="flex justify-between items-end pt-3 text-[10px] text-slate-400">
+        <span>Consistency &bull; Discipline &bull; Hard Work</span>
+        <span class="font-bold text-slate-700">Official Coach Signature: __________________</span>
+      </div>
+    </div>
+  `;
+}
+
+function printSelectedDietPlan() {
+  document.body.classList.remove('print-report', 'print-id-card', 'print-standee', 'print-receipt');
+  document.body.classList.add('print-diet');
+  window.print();
+  setTimeout(() => document.body.classList.remove('print-diet'), 1000);
+}
+
+async function sendSelectedDietWhatsApp() {
+  const plan = DIET_WORKOUT_PLANS[currentDietPlanKey];
+  if (!plan) return;
+
+  const members = getMembers();
+  const member = members.find(m => m.id === currentDietMemberId);
+  if (!member) {
+    showNotification('Kripya pehle upar dropdown me se Target Member select karein!', 'warning');
+    return;
+  }
+
+  const settings = getGymSettings();
+  const gymName = settings.gymName || 'OG Fitness';
+
+  let msg = `📋 *${gymName.toUpperCase()} - CUSTOM FITNESS PROTOCOL* 📋\n` +
+    `----------------------------------------\n` +
+    `*Member:* ${member.name} (${member.id})\n` +
+    `*Program:* ${plan.title}\n` +
+    `----------------------------------------\n\n`;
+
+  if (plan.meals) {
+    msg += `🎯 *Target:* ${plan.target}\n` +
+      `🔥 *Calories:* ${plan.calories}\n` +
+      `🥩 *Protein:* ${plan.protein}\n` +
+      `💧 *Water:* ${plan.water}\n\n` +
+      `*MEAL SCHEDULE:*\n`;
+    plan.meals.forEach(m => {
+      msg += `⏰ *${m.time}:*\n👉 ${m.items}\n\n`;
+    });
+  } else if (plan.days) {
+    msg += `🎯 *Frequency:* ${plan.frequency}\n\n` +
+      `*WORKOUT ROUTINE:*\n`;
+    plan.days.forEach(d => {
+      msg += `🏋️ *${d.day}:*\n`;
+      d.exercises.forEach(ex => {
+        msg += `  • ${ex}\n`;
+      });
+      msg += `\n`;
+    });
+  }
+
+  msg += `----------------------------------------\n` +
+    `💡 *Coach Rules:*\n`;
+  plan.guidelines.forEach(g => {
+    msg += `• ${g}\n`;
+  });
+  msg += `\n_Stay disciplined, track your progress daily!_ 💪🔥\n` +
+    `- Team ${gymName}`;
+
+  await sendCustomWhatsAppMessage(member.phone, msg, `${plan.title} for ${member.name}`);
+}
+
+// --------------------------------------------------------
+// FEATURE 5: Gym Expenses & Net Profit Tracker
+// --------------------------------------------------------
+function getExpenses() {
+  return JSON.parse(localStorage.getItem(DB_KEYS.EXPENSES) || '[]');
+}
+
+function saveExpenses(expenses) {
+  localStorage.setItem(DB_KEYS.EXPENSES, JSON.stringify(expenses));
+}
+
+async function fetchExpensesFromBackend() {
+  try {
+    const res = await fetch('/api/expenses');
+    if (res.ok) {
+      const serverExpenses = await res.json();
+      if (Array.isArray(serverExpenses)) {
+        saveExpenses(serverExpenses);
+      }
+    }
+  } catch (e) {}
+}
+
+function renderExpensesView() {
+  const periodFilter = document.getElementById('expenses-month-filter')?.value || 'current_month';
+  const expenses = getExpenses();
+  const members = getMembers();
+
+  const filteredExpenses = expenses.filter(e => isDateInPeriod(e.date, periodFilter));
+  const filteredMembers = members.filter(m => isDateInPeriod(m.joinDate, periodFilter));
+
+  const totalRevenue = filteredMembers.reduce((sum, m) => sum + (parseFloat(m.feesPaid) || 0), 0);
+  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+  const netProfit = totalRevenue - totalExpenses;
+  const margin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : (totalExpenses > 0 ? -100 : 0);
+
+  const revEl = document.getElementById('exp-kpi-revenue');
+  const expEl = document.getElementById('exp-kpi-total-expenses');
+  const profitEl = document.getElementById('exp-kpi-net-profit');
+  const marginEl = document.getElementById('exp-kpi-margin');
+  const profitStatusEl = document.getElementById('exp-profit-status');
+  const profitCard = document.getElementById('exp-net-profit-card');
+  const countBadge = document.getElementById('expenses-count-badge');
+  const summaryLabel = document.getElementById('expenses-summary-label');
+  const tbody = document.getElementById('expenses-table-body');
+
+  if (revEl) revEl.textContent = `₹${totalRevenue.toLocaleString('en-IN')}`;
+  if (expEl) expEl.textContent = `₹${totalExpenses.toLocaleString('en-IN')}`;
+  if (profitEl) {
+    profitEl.textContent = `${netProfit < 0 ? '-' : ''}₹${Math.abs(netProfit).toLocaleString('en-IN')}`;
+  }
+  if (marginEl) marginEl.textContent = `${margin}%`;
+
+  if (profitCard && profitStatusEl) {
+    if (netProfit >= 0) {
+      profitCard.className = 'p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200';
+      if (profitEl) profitEl.className = 'text-2xl sm:text-3xl font-black text-emerald-800 font-mono';
+      profitStatusEl.innerHTML = `<span class="text-emerald-700 font-bold">✨ Profitable Gym (+₹${netProfit.toLocaleString('en-IN')})</span>`;
+    } else {
+      profitCard.className = 'p-4 rounded-2xl bg-rose-50/50 border border-rose-200';
+      if (profitEl) profitEl.className = 'text-2xl sm:text-3xl font-black text-rose-800 font-mono';
+      profitStatusEl.innerHTML = `<span class="text-rose-700 font-bold">⚠️ Net Loss (-₹${Math.abs(netProfit).toLocaleString('en-IN')})</span>`;
+    }
+  }
+
+  if (summaryLabel) {
+    summaryLabel.textContent = `${filteredMembers.length} Admissions &bull; ${filteredExpenses.length} Expense Records`;
+  }
+  if (countBadge) {
+    countBadge.textContent = `${filteredExpenses.length} Items`;
+  }
+
+  if (!tbody) return;
+
+  if (filteredExpenses.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center py-8 text-slate-500">
+          <div class="max-w-xs mx-auto space-y-2">
+            <i class="fa-solid fa-receipt text-2xl text-slate-300"></i>
+            <p class="text-xs font-semibold text-slate-700">Koi expense record nahi mila</p>
+            <p class="text-[11px] text-slate-400">Iss period me koi kharcha darj nahi hai. Upar "Add Expense" dabakar naya kharcha jodein.</p>
+          </div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  tbody.innerHTML = filteredExpenses.map(e => `
+    <tr class="border-b border-slate-100 hover:bg-slate-50/80 transition">
+      <td class="py-3 px-4 font-mono text-slate-600">${e.date}</td>
+      <td class="py-3 px-4 font-bold text-slate-900">${e.title}</td>
+      <td class="py-3 px-4">
+        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">${e.category || 'Other'}</span>
+      </td>
+      <td class="py-3 px-4 text-slate-600">${e.paymentMode || 'UPI'}</td>
+      <td class="py-3 px-4 font-mono font-bold text-rose-600">₹${(parseFloat(e.amount) || 0).toLocaleString('en-IN')}</td>
+      <td class="py-3 px-4 text-slate-500 text-[11px]">${e.notes || '-'}</td>
+      <td class="py-3 px-4 text-right">
+        <button onclick="deleteExpense('${e.id}')" title="Delete Expense" class="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 inline-flex items-center justify-center transition shadow-2xs">
+          <i class="fa-solid fa-trash-can text-xs"></i>
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openAddExpenseModal() {
+  const modal = document.getElementById('add-expense-modal');
+  const dateInput = document.getElementById('exp-form-date');
+  if (dateInput) dateInput.value = TODAY_STR;
+  if (modal) modal.classList.add('active');
+}
+
+function closeAddExpenseModal() {
+  const modal = document.getElementById('add-expense-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+async function handleExpenseFormSubmit(e) {
+  e.preventDefault();
+  const title = document.getElementById('exp-form-title')?.value.trim();
+  const category = document.getElementById('exp-form-category')?.value || 'Other';
+  const amount = parseFloat(document.getElementById('exp-form-amount')?.value) || 0;
+  const date = document.getElementById('exp-form-date')?.value || TODAY_STR;
+  const paymentMode = document.getElementById('exp-form-mode')?.value || 'UPI';
+  const notes = document.getElementById('exp-form-notes')?.value.trim() || '';
+
+  if (!title || amount <= 0) {
+    showNotification('Kripya valid title aur amount bharein!', 'warning');
+    return;
+  }
+
+  const newExpense = {
+    id: 'exp-' + Date.now(),
+    title,
+    category,
+    amount,
+    date,
+    paymentMode,
+    notes
+  };
+
+  const expenses = getExpenses();
+  expenses.unshift(newExpense);
+  saveExpenses(expenses);
+
+  try {
+    await fetch('/api/expenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newExpense)
+    });
+  } catch (err) {}
+
+  showNotification(`✅ Kharcha darj hua: ₹${amount.toLocaleString('en-IN')} (${title})`, 'success');
+  document.getElementById('add-expense-form')?.reset();
+  closeAddExpenseModal();
+  renderExpensesView();
+}
+
+async function deleteExpense(expenseId) {
+  if (!confirm('Kya aap is expense record ko delete karna chahte hain?')) return;
+
+  let expenses = getExpenses();
+  expenses = expenses.filter(e => e.id !== expenseId);
+  saveExpenses(expenses);
+
+  try {
+    await fetch('/api/expenses/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expenseId })
+    });
+  } catch (err) {}
+
+  showNotification('🗑️ Expense entry hata di gayi.', 'info');
+  renderExpensesView();
+}
+
+function exportExpensesToCSV() {
+  const periodFilter = document.getElementById('expenses-month-filter')?.value || 'all';
+  const expenses = getExpenses().filter(e => isDateInPeriod(e.date, periodFilter));
+
+  if (expenses.length === 0) {
+    showNotification('Export karne ke liye koi expense data nahi mila.', 'warning');
+    return;
+  }
+
+  const headers = ['Date', 'Expense Title', 'Category', 'Payment Mode', 'Amount (INR)', 'Notes'];
+  const rows = expenses.map(e => [
+    e.date,
+    `"${(e.title || '').replace(/"/g, '""')}"`,
+    `"${(e.category || '').replace(/"/g, '""')}"`,
+    `"${(e.paymentMode || '').replace(/"/g, '""')}"`,
+    e.amount || 0,
+    `"${(e.notes || '').replace(/"/g, '""')}"`
+  ]);
+
+  const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+  downloadCsvBlob(`og_fitness_expenses_${TODAY_STR}.csv`, csvContent);
+  showNotification('📊 Expenses CSV Downloaded!', 'success');
+}
+
 

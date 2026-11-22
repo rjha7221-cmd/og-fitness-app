@@ -129,6 +129,21 @@
           </div>
         </button>
 
+        <button onclick="switchTab('diet-plans')" class="sidebar-link w-full" data-tab-btn="diet-plans">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-apple-whole text-base w-4 text-center"></i>
+            <span>Diet & Workouts</span>
+          </div>
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-100 text-emerald-700">Pro</span>
+        </button>
+
+        <button onclick="switchTab('expenses')" class="sidebar-link w-full" data-tab-btn="expenses">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-wallet text-base w-4 text-center"></i>
+            <span>Expenses & Profit</span>
+          </div>
+        </button>
+
         <button onclick="switchTab('settings')" class="sidebar-link w-full" data-tab-btn="settings">
           <div class="flex items-center gap-3">
             <i class="fa-solid fa-gear text-base w-4 text-center"></i>
@@ -236,6 +251,11 @@
           <p class="text-[11px] text-slate-400">
             Showing your live gym members, active attendance, floor roster and renewals.
           </p>
+        </div>
+
+        <!-- Today's Birthday Banner (Dynamic) -->
+        <div id="dashboard-birthday-banner" class="hidden p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-pink-500/10 border border-orange-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+          <!-- Populated by JS -->
         </div>
 
         <!-- 4 Top KPI Metric Cards (SolarZent Exact Clean White Cards) -->
@@ -395,6 +415,25 @@
                 <a href="punch.html" target="_blank" class="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs border border-slate-200 flex items-center justify-center" title="Open member self-punch">
                   <i class="fa-solid fa-arrow-up-right-from-square"></i>
                 </a>
+              </div>
+            </div>
+
+            <!-- Inactive / Absent Members Watchdog Card (Drop-out Prevention) -->
+            <div class="solar-card p-5 space-y-3 border-amber-200 bg-amber-50/20">
+              <div class="flex items-center justify-between pb-2 border-b border-amber-100">
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">
+                    <i class="fa-solid fa-user-clock"></i>
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-bold text-slate-900">Absent Members (5+ Days)</h4>
+                    <p class="text-[10px] text-slate-500">Drop-out prevention alerts</p>
+                  </div>
+                </div>
+                <span id="dashboard-absentee-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">0 Absent</span>
+              </div>
+              <div id="dashboard-absentee-list" class="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                <!-- Dynamically populated by JS -->
               </div>
             </div>
 
@@ -596,7 +635,7 @@
               </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label class="block text-xs font-semibold text-slate-700 mb-1">Gender</label>
                 <select id="form-gender" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-slate-700 focus:outline-none transition">
@@ -608,6 +647,10 @@
               <div>
                 <label class="block text-xs font-semibold text-slate-700 mb-1">Age</label>
                 <input type="number" id="form-age" placeholder="e.g. 25" min="12" max="90" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none transition">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Date of Birth (DOB)</label>
+                <input type="date" id="form-dob" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none transition">
               </div>
             </div>
 
@@ -875,6 +918,189 @@
             </div>
             <div id="rep-expiries-container" class="space-y-2">
               <!-- Dynamically populated -->
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION 7: DIET & WORKOUT PLANS GENERATOR  -->
+      <!-- ========================================== -->
+      <div id="view-diet-plans" class="portal-tab-content space-y-6 hidden">
+        <div class="solar-card p-6 space-y-5">
+          <!-- Header Banner -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-600 flex items-center gap-1.5">
+                <i class="fa-solid fa-apple-whole"></i>
+                Fitness Coaching Tools
+              </span>
+              <h3 class="text-xl font-bold text-slate-900 mt-0.5">1-Click Diet & Workout Plan Generator</h3>
+              <p class="text-xs text-slate-500">Member select karein, pre-built high protein plan ya workout routine chunein aur 1-click WhatsApp ya Print karein.</p>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+              <button onclick="sendSelectedDietWhatsApp()" id="btn-diet-whatsapp" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 transition shadow-sm">
+                <i class="fa-brands fa-whatsapp text-sm"></i>
+                <span>Send on WhatsApp</span>
+              </button>
+              <button onclick="printSelectedDietPlan()" class="btn-solar px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-print"></i>
+                <span>Print Plan (A4)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Controls: Member Selector & Plan Picker -->
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <div class="md:col-span-5">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Target Member *</label>
+              <select id="diet-member-select" onchange="onDietMemberSelected(this.value)" class="w-full bg-white border border-slate-200 focus:border-orange-500 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-medium focus:outline-none transition">
+                <option value="">-- Choose Member --</option>
+              </select>
+            </div>
+
+            <div class="md:col-span-7">
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Choose Plan Template</label>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <button type="button" onclick="selectDietTemplate('fat-loss')" id="diet-tab-fat-loss" class="diet-template-btn active px-2.5 py-2 rounded-xl text-xs font-bold text-center border transition bg-orange-500 text-white border-orange-500">
+                  🥗 Fat Loss
+                </button>
+                <button type="button" onclick="selectDietTemplate('muscle-bulking')" id="diet-tab-muscle-bulking" class="diet-template-btn px-2.5 py-2 rounded-xl text-xs font-semibold text-center border transition bg-white text-slate-700 border-slate-200 hover:bg-slate-100">
+                  🥩 Bulking Diet
+                </button>
+                <button type="button" onclick="selectDietTemplate('beginner-routine')" id="diet-tab-beginner-routine" class="diet-template-btn px-2.5 py-2 rounded-xl text-xs font-semibold text-center border transition bg-white text-slate-700 border-slate-200 hover:bg-slate-100">
+                  🏋️ 3-Day Beginner
+                </button>
+                <button type="button" onclick="selectDietTemplate('ppl-split')" id="diet-tab-ppl-split" class="diet-template-btn px-2.5 py-2 rounded-xl text-xs font-semibold text-center border transition bg-white text-slate-700 border-slate-200 hover:bg-slate-100">
+                  ⚡ 6-Day PPL
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Printable Plan Canvas Preview -->
+          <div id="printable-diet-plan" class="p-6 sm:p-8 rounded-2xl bg-white border-2 border-slate-200 shadow-sm space-y-6">
+            <!-- Populated dynamically by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION 8: GYM EXPENSES & NET PROFIT       -->
+      <!-- ========================================== -->
+      <div id="view-expenses" class="portal-tab-content space-y-6 hidden">
+        <div class="solar-card p-6 space-y-5">
+          
+          <!-- Header Banner -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-orange-600 flex items-center gap-1.5">
+                <i class="fa-solid fa-wallet"></i>
+                Financial Accounting & Net Profit
+              </span>
+              <h3 class="text-xl font-bold text-slate-900 mt-0.5">Gym Expenses & Net Profit Tracker</h3>
+              <p class="text-xs text-slate-500">Rent, bijli, trainer salary aur equipment kharcha track karein; real Net Profit (Munafa) calculate karein.</p>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+              <button onclick="exportExpensesToCSV()" class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-200" title="Export as CSV sheet">
+                <i class="fa-solid fa-file-csv text-emerald-600"></i>
+                <span>Export CSV</span>
+              </button>
+              <button onclick="openAddExpenseModal()" class="btn-solar px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-plus"></i>
+                <span>Add Expense (Kharcha Jodein)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Month Filter Bar -->
+          <div class="flex items-center justify-between gap-3 flex-wrap pt-1">
+            <div class="flex items-center gap-2">
+              <label for="expenses-month-filter" class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <i class="fa-regular fa-calendar text-orange-600"></i> Period:
+              </label>
+              <select id="expenses-month-filter" onchange="renderExpensesView()" class="bg-white border border-slate-200 focus:border-orange-500 rounded-xl px-3 py-1.5 text-xs text-slate-900 font-medium focus:outline-none transition">
+                <option value="all">All Time (Sabhi Mahine)</option>
+                <option value="current_month" selected>This Month (Iss Mahine)</option>
+                <option value="last_month">Last Month (Pichle Mahine)</option>
+              </select>
+            </div>
+            <div id="expenses-summary-label" class="text-xs text-slate-500 font-medium"></div>
+          </div>
+
+          <!-- 4 Financial KPI Cards -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Total Revenue -->
+            <div class="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200">
+              <div class="flex items-center justify-between text-xs text-emerald-700 font-semibold mb-1">
+                <span>Total Fee Revenue</span>
+                <i class="fa-solid fa-money-bill-wave"></i>
+              </div>
+              <div id="exp-kpi-revenue" class="text-2xl sm:text-3xl font-black text-emerald-800 font-mono">₹0</div>
+              <div class="text-[11px] text-emerald-600 mt-1">Total membership collection</div>
+            </div>
+
+            <!-- Total Expenses -->
+            <div class="p-4 rounded-2xl bg-rose-50/50 border border-rose-200">
+              <div class="flex items-center justify-between text-xs text-rose-700 font-semibold mb-1">
+                <span>Total Expenses</span>
+                <i class="fa-solid fa-receipt"></i>
+              </div>
+              <div id="exp-kpi-total-expenses" class="text-2xl sm:text-3xl font-black text-rose-800 font-mono">₹0</div>
+              <div class="text-[11px] text-rose-600 mt-1">Gym operating kharcha</div>
+            </div>
+
+            <!-- Net Profit -->
+            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200" id="exp-net-profit-card">
+              <div class="flex items-center justify-between text-xs text-slate-600 font-semibold mb-1">
+                <span>Net Profit (Munafa)</span>
+                <i class="fa-solid fa-chart-line text-orange-600"></i>
+              </div>
+              <div id="exp-kpi-net-profit" class="text-2xl sm:text-3xl font-black text-slate-900 font-mono">₹0</div>
+              <div id="exp-profit-status" class="text-[11px] text-slate-500 mt-1">Revenue - Expenses</div>
+            </div>
+
+            <!-- Profit Margin % -->
+            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+              <div class="flex items-center justify-between text-xs text-slate-600 font-semibold mb-1">
+                <span>Profit Margin</span>
+                <i class="fa-solid fa-percent text-sky-600"></i>
+              </div>
+              <div id="exp-kpi-margin" class="text-2xl sm:text-3xl font-black text-slate-900 font-mono">0%</div>
+              <div class="text-[11px] text-slate-400 mt-1">Healthy gym margin: > 40%</div>
+            </div>
+          </div>
+
+          <!-- Expenses List Table -->
+          <div class="space-y-3 pt-2">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-list-check text-orange-600"></i>
+                <span>Recorded Expenses (Kharcha Suchi)</span>
+              </h4>
+              <span id="expenses-count-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">0 Items</span>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                    <th class="py-3 px-4">Date</th>
+                    <th class="py-3 px-4">Expense Title</th>
+                    <th class="py-3 px-4">Category</th>
+                    <th class="py-3 px-4">Payment Mode</th>
+                    <th class="py-3 px-4">Amount (₹)</th>
+                    <th class="py-3 px-4">Notes</th>
+                    <th class="py-3 px-4 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="expenses-table-body" class="divide-y divide-slate-100">
+                  <!-- Dynamically populated by JS -->
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -1289,6 +1515,11 @@
         </button>
       </div>
 
+      <button onclick="openReceiptModalForCurrentCard()" class="w-full bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold py-2.5 rounded-xl text-xs uppercase flex items-center justify-center gap-1.5 border border-amber-200 transition shadow-sm">
+        <i class="fa-solid fa-receipt text-amber-600"></i>
+        <span>🧾 WhatsApp Fee Receipt / Bill</span>
+      </button>
+
       <button onclick="closeModalAndGoToDirectory()" class="w-full btn-solar font-bold py-3 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm">
         <i class="fa-solid fa-users"></i>
         <span>Done &bull; View in Member Directory &rarr;</span>
@@ -1334,6 +1565,176 @@
           <span>Haan, Hatayein</span>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- 5. Fees WhatsApp Receipt & Bill Modal -->
+  <div id="receipt-modal" class="portal-modal fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+    <div class="solar-card w-full max-w-lg p-6 space-y-5 shadow-2xl relative">
+      <button onclick="closeReceiptModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-700">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div>
+        <span class="text-[10px] font-bold uppercase tracking-wider text-orange-600">Official Invoice</span>
+        <h3 class="text-lg font-bold text-slate-900">Gym Fee Receipt & Bill</h3>
+        <p class="text-xs text-slate-500">1-click WhatsApp receipt bhejein ya counter slip print karein.</p>
+      </div>
+
+      <!-- Printable Fee Receipt Canvas -->
+      <div id="printable-fee-receipt" class="bg-white p-6 rounded-2xl border-2 border-slate-200 shadow-sm space-y-4">
+        <!-- Header with logo and gym name -->
+        <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-orange-600 text-white flex items-center justify-center font-bold text-lg">
+              <i class="fa-solid fa-dumbbell"></i>
+            </div>
+            <div>
+              <h2 id="receipt-gym-name" class="text-xl font-black text-slate-900 leading-tight">OG FITNESS</h2>
+              <div id="receipt-gym-address" class="text-[11px] text-slate-500">City Center, Main Road</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Receipt No:</div>
+            <div id="receipt-no" class="font-mono text-xs font-bold text-orange-600">RCP-000000</div>
+            <div id="receipt-date" class="text-[11px] text-slate-500 font-mono mt-0.5">22 Nov 2026</div>
+          </div>
+        </div>
+
+        <!-- Member info grid -->
+        <div class="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+          <div>
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Member Name:</span>
+            <span id="receipt-member-name" class="font-bold text-slate-900 text-sm block">-</span>
+            <span id="receipt-member-phone" class="font-mono text-slate-600 text-[11px] block">-</span>
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-400 uppercase font-semibold block">Member ID:</span>
+            <span id="receipt-member-id" class="font-mono font-bold text-orange-600 text-sm block">-</span>
+            <span id="receipt-member-plan" class="text-slate-700 font-medium text-[11px] block">-</span>
+          </div>
+        </div>
+
+        <!-- Fees breakdown table -->
+        <div class="border border-slate-200 rounded-xl overflow-hidden">
+          <table class="w-full text-xs">
+            <thead class="bg-slate-100 text-slate-600 font-bold border-b border-slate-200 text-[11px]">
+              <tr>
+                <th class="py-2 px-3 text-left">Description</th>
+                <th class="py-2 px-3 text-right">Amount (₹)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 font-mono">
+              <tr>
+                <td class="py-2.5 px-3">
+                  <div class="font-bold text-slate-800" id="receipt-row-plan">3 Months Strength Membership</div>
+                  <div class="text-[10px] text-slate-400 font-sans" id="receipt-row-validity">Validity: -</div>
+                </td>
+                <td class="py-2.5 px-3 text-right font-bold text-slate-900" id="receipt-row-total">₹0</td>
+              </tr>
+              <tr class="bg-emerald-50/40">
+                <td class="py-2 px-3 text-slate-700 font-sans font-semibold">
+                  Paid Amount (<span id="receipt-payment-mode">UPI</span>)
+                </td>
+                <td class="py-2 px-3 text-right font-bold text-emerald-700" id="receipt-row-paid">₹0</td>
+              </tr>
+              <tr id="receipt-due-row" class="bg-rose-50/40">
+                <td class="py-2 px-3 text-rose-700 font-sans font-semibold">Balance Due</td>
+                <td class="py-2 px-3 text-right font-bold text-rose-700" id="receipt-row-due">₹0</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Footer note & terms -->
+        <div class="pt-2 text-center border-t border-dashed border-slate-200 space-y-1">
+          <p class="text-[11px] font-semibold text-slate-700">Thank you for training with OG Fitness!</p>
+          <p class="text-[9px] text-slate-400">Sweat Today, Smile Tomorrow &bull; Fees once paid are non-refundable.</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="grid grid-cols-2 gap-3 pt-1">
+        <button onclick="sendReceiptViaWhatsApp()" id="btn-modal-send-receipt-wa" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs uppercase flex items-center justify-center gap-1.5 transition shadow-sm">
+          <i class="fa-brands fa-whatsapp text-sm"></i>
+          <span>WhatsApp Receipt</span>
+        </button>
+        <button onclick="printReceipt()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs uppercase flex items-center justify-center gap-1.5 border border-slate-200 transition">
+          <i class="fa-solid fa-print text-sm text-orange-600"></i>
+          <span>Print Slip</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Add Expense Modal -->
+  <div id="add-expense-modal" class="portal-modal fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+    <div class="solar-card w-full max-w-md p-6 space-y-5 shadow-2xl relative">
+      <button onclick="closeAddExpenseModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-700">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div>
+        <span class="text-[10px] font-bold uppercase tracking-wider text-rose-600">Kharcha Entry</span>
+        <h3 class="text-lg font-bold text-slate-900">Record Gym Expense</h3>
+        <p class="text-xs text-slate-500">Gym ka naya kharcha add karein taaki net profit auto-calculate ho sake.</p>
+      </div>
+
+      <form id="add-expense-form" onsubmit="handleExpenseFormSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Expense Title / Description *</label>
+          <input type="text" id="exp-form-title" required placeholder="e.g. Bijli Bill / Trainer Salary / Equipment Repair" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none transition font-medium">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Category *</label>
+            <select id="exp-form-category" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 rounded-xl px-3 py-2.5 text-xs text-slate-900 font-medium focus:outline-none transition">
+              <option value="Rent">🏢 Rent</option>
+              <option value="Electricity">⚡ Electricity (Bijli)</option>
+              <option value="Trainer Salary">🏋️ Trainer Salary</option>
+              <option value="Maintenance">🔧 Maintenance / Repairs</option>
+              <option value="Equipment">⚙️ Gym Equipment</option>
+              <option value="Supplements">🥤 Supplements / Inventory</option>
+              <option value="Marketing">📢 Marketing / Ads</option>
+              <option value="Other" selected>📦 Other Kharcha</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Amount (₹) *</label>
+            <input type="number" id="exp-form-amount" required min="1" placeholder="₹ Amount" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 font-mono font-bold focus:outline-none transition">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Date *</label>
+            <input type="date" id="exp-form-date" required class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 rounded-xl px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none transition">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Payment Mode</label>
+            <select id="exp-form-mode" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 rounded-xl px-3 py-2 text-xs text-slate-900 font-medium focus:outline-none transition">
+              <option value="UPI" selected>UPI / Online</option>
+              <option value="Cash">Cash (Counter)</option>
+              <option value="Bank Transfer">Bank Transfer / NEFT</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Notes / Vendor Name (Optional)</label>
+          <input type="text" id="exp-form-notes" placeholder="e.g. Paid to electricity board or vendor" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none transition">
+        </div>
+
+        <div class="pt-2">
+          <button type="submit" class="w-full btn-solar py-3 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-2">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span>Save Expense Entry</span>
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
