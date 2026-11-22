@@ -146,28 +146,56 @@ body {
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Printable ID Card & Table Standee */
+/* ==================================================== */
+/* Clean Print Modes: Daily Report (A4), Standee & ID Card */
+/* ==================================================== */
 @media print {
-  body:not(.print-standee) * {
+  @page {
+    size: auto;
+    margin: 8mm;
+  }
+
+  /* Hide entire page by default */
+  html, body {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body * {
     visibility: hidden;
   }
-  body:not(.print-standee) #printable-id-card, 
-  body:not(.print-standee) #printable-id-card * {
+
+  /* 1. Dedicated Daily Report Print (Clean Audit PDF) */
+  body.print-report #printable-daily-report,
+  body.print-report #printable-daily-report * {
     visibility: visible;
   }
-  body:not(.print-standee) #printable-id-card {
+  body.print-report #printable-daily-report {
     position: absolute;
     left: 0;
     top: 0;
-    width: 85.6mm;
-    height: 53.98mm;
-    margin: 0;
-    padding: 0;
+    width: 100%;
+    margin: 0 !important;
+    padding: 6mm 10mm !important;
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  /* Hide all buttons and interactive controls inside printable report */
+  body.print-report button,
+  body.print-report .no-print,
+  body.print-report .portal-modal,
+  body.print-report #id-card-modal,
+  body.print-report #printable-id-card,
+  body.print-report #printable-table-standee {
+    display: none !important;
+    visibility: hidden !important;
   }
 
-  body.print-standee * {
-    visibility: hidden;
-  }
+  /* 2. Dedicated Table Standee Print */
   body.print-standee #printable-table-standee,
   body.print-standee #printable-table-standee * {
     visibility: visible;
@@ -186,24 +214,33 @@ body {
     border-radius: 18px !important;
     box-shadow: none !important;
   }
-
-  /* Printable Daily Report Styling */
-  body.print-report * {
-    visibility: hidden;
+  body.print-standee #printable-daily-report,
+  body.print-standee #printable-id-card {
+    display: none !important;
+    visibility: hidden !important;
   }
-  body.print-report #printable-daily-report,
-  body.print-report #printable-daily-report * {
+
+  /* 3. Dedicated Member ID Card Print */
+  body.print-id-card #printable-id-card,
+  body.print-id-card #printable-id-card * {
     visibility: visible;
   }
-  body.print-report #printable-daily-report {
+  body.print-id-card #printable-id-card {
     position: absolute;
     left: 0;
     top: 0;
-    width: 100%;
+    width: 85.6mm;
+    height: 53.98mm;
     margin: 0;
-    padding: 12mm;
+    padding: 12px;
     background: #FFFFFF !important;
     color: #0F172A !important;
+    box-shadow: none !important;
+  }
+  body.print-id-card #printable-daily-report,
+  body.print-id-card #printable-table-standee {
+    display: none !important;
+    visibility: hidden !important;
   }
 }
 

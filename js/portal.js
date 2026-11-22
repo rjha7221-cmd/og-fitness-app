@@ -332,11 +332,24 @@ function sendWhatsAppReminder(memberId) {
   window.open(waUrl, '_blank');
 }
 
-// 5. Excel / CSV Sheet Exporter
+// 5. Excel / CSV Sheet Exporter Helpers
+function downloadCsvBlob(filename, csvContent) {
+  // Prepend \uFEFF (UTF-8 Byte Order Mark) so Microsoft Excel opens cleanly with UTF-8 encoding
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function exportMembersToCSV() {
   const members = getMembers();
   if (!members.length) {
-    alert('Koi member data export karne ke liye nahi hai.');
+    showNotification('Export karne ke liye koi member record nahi hai.', 'warning');
     return;
   }
 
@@ -351,64 +364,84 @@ function exportMembersToCSV() {
     'Expiry Date',
     'Days Remaining',
     'Status',
-    'Total Fees (INR)',
-    'Fees Paid (INR)',
-    'Pending Due (INR)',
+    'Total Fees (₹)',
+    'Fees Paid (₹)',
+    'Pending Due (₹)',
     'Notes'
   ];
 
   const rows = members.map(m => {
     const daysLeft = getDaysRemaining(m.expiryDate);
     const due = Math.max(0, (m.feesTotal || 0) - (m.feesPaid || 0));
+    const cleanPhone = m.phone ? `="${m.phone}"` : '""';
     return [
       `"${m.id}"`,
-      `"${m.name}"`,
-      `"${m.phone}"`,
-      `"${m.gender}"`,
+      `"${(m.name || '').replace(/"/g, '""')}"`,
+      cleanPhone,
+      `"${m.gender || ''}"`,
       m.age || '',
-      `"${m.planName}"`,
-      m.joinDate,
-      m.expiryDate,
+      `"${(m.planName || '').replace(/"/g, '""')}"`,
+      m.joinDate || '',
+      m.expiryDate || '',
       daysLeft,
-      `"${m.status}"`,
+      `"${m.status || 'Active'}"`,
       m.feesTotal || 0,
       m.feesPaid || 0,
       due,
       `"${(m.notes || '').replace(/"/g, '""')}"`
-    ];
+    ].join(',');
   });
 
-  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
-  link.setAttribute('download', `OG_Fitness_Members_Sheet_${TODAY_STR}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  const csvContent = headers.join(',') + '\r\n' + rows.join('\r\n');
+  downloadCsvBlob(`OG_Fitness_Members_Master_${TODAY_STR}.csv`, csvContent);
+  showNotification('📊 Members master directory downloaded as Excel CSV!', 'success');
 }
 
 function exportAttendanceToCSV() {
   const attendance = getAttendance();
-  const headers = ['Record ID', 'Date', 'Member ID', 'Member Name', 'Check-In Time', 'Check-Out Time', 'Status'];
-  const rows = attendance.map(a => [
-    `"${a.id}"`,
-    `"${a.date}"`,
-    `"${a.memberId}"`,
-    `"${a.memberName}"`,
-    `"${a.checkInTime}"`,
-    `"${a.checkOutTime || 'On Floor'}"`,
-    `"${a.status}"`
-  ]);
+  if (!attendance.length) {
+    showNotification('Export karne ke liye koi attendance record nahi hai.', 'warning');
+    return;
+  }
 
-  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
-  link.setAttribute('download', `OG_Fitness_Attendance_Sheet_${TODAY_STR}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  const headers = [
+    'Record ID',
+    'Date',
+    'Member ID',
+    'Member Name',
+    'Check-In Time',
+    'Check-Out Time',
+    'Workout Duration',
+    'Attendance Status'
+  ];
+
+  const rows = attendance.map(a => {
+    let durationText = 'Active / On Floor';
+    if (a.checkInTime && a.checkOutTime) {
+      const inMins = parseTimeStrToMinutes(a.checkInTime);
+      const outMins = parseTimeStrToMinutes(a.checkOutTime);
+      if (inMins !== null && outMins !== null) {
+        durationText = `${Math.max(0, outMins - inMins)} mins`;
+      } else {
+        durationText = 'Completed';
+      }
+    }
+
+    return [
+      `"${a.id}"`,
+      `"${a.date}"`,
+      `"${a.memberId}"`,
+      `"${(a.memberName || '').replace(/"/g, '""')}"`,
+      `"${a.checkInTime || ''}"`,
+      `"${a.checkOutTime || 'On Floor'}"`,
+      `"${durationText}"`,
+      `"${a.status || 'Completed'}"`
+    ].join(',');
+  });
+
+  const csvContent = headers.join(',') + '\r\n' + rows.join('\r\n');
+  downloadCsvBlob(`OG_Fitness_Attendance_${TODAY_STR}.csv`, csvContent);
+  showNotification('📊 Attendance punch sheet downloaded as Excel CSV!', 'success');
 }
 
 // 6. QR Attendance Punch Engine
@@ -1274,6 +1307,7 @@ function renderDailyReportForDate(dateStr) {
 }
 
 function downloadDailyReportPDF() {
+  document.body.classList.remove('print-standee', 'print-id-card');
   document.body.classList.add('print-report');
   window.print();
   setTimeout(() => {
@@ -1281,31 +1315,127 @@ function downloadDailyReportPDF() {
   }, 1000);
 }
 
+function printMemberIdCard() {
+  document.body.classList.remove('print-standee', 'print-report');
+  document.body.classList.add('print-id-card');
+  window.print();
+  setTimeout(() => {
+    document.body.classList.remove('print-id-card');
+  }, 1000);
+}
+
 function exportDailyReportCSV() {
   const members = getMembers();
   const attendance = getAttendance().filter(a => a.date === selectedReportDate);
   const admissions = members.filter(m => m.joinDate === selectedReportDate);
+  const expiries = members.filter(m => m.expiryDate === selectedReportDate);
 
-  let csv = `OG FITNESS - DAILY AUDIT REPORT (${selectedReportDate})\n\n`;
-  csv += `SECTION 1: NEW ADMISSIONS ON ${selectedReportDate}\n`;
-  csv += `Member ID,Name,Phone,Plan,Fees Paid\n`;
+  const headers = [
+    'Audit Date',
+    'Activity Category',
+    'Member ID',
+    'Member Name',
+    'Phone Number',
+    'Plan Name',
+    'Check-In Time',
+    'Check-Out Time',
+    'Workout Duration',
+    'Status',
+    'Amount Paid (₹)',
+    'Audit Notes'
+  ];
+
+  const rows = [];
+
+  // 1. Add Admissions
   admissions.forEach(m => {
-    csv += `"${m.id}","${m.name}","${m.phone}","${m.planName}",${m.feesPaid || 0}\n`;
+    const cleanPhone = m.phone ? `="${m.phone}"` : '""';
+    rows.push([
+      `"${selectedReportDate}"`,
+      `"New Admission"`,
+      `"${m.id}"`,
+      `"${(m.name || '').replace(/"/g, '""')}"`,
+      cleanPhone,
+      `"${(m.planName || '').replace(/"/g, '""')}"`,
+      `"-"`,
+      `"-"`,
+      `"-"`,
+      `"${m.status || 'Active'}"`,
+      m.feesPaid || 0,
+      `"Enrolled (Fees: ₹${m.feesTotal || 0})"`
+    ].join(','));
   });
 
-  csv += `\nSECTION 2: ATTENDANCE & PUNCH LOGS ON ${selectedReportDate}\n`;
-  csv += `Member ID,Member Name,Check-In Time,Check-Out Time,Status\n`;
+  // 2. Add Attendance Records
   attendance.forEach(a => {
-    csv += `"${a.memberId}","${a.memberName}","${a.checkInTime}","${a.checkOutTime || 'On Floor'}","${a.status}"\n`;
+    const member = members.find(m => m.id === a.memberId) || {};
+    const cleanPhone = member.phone ? `="${member.phone}"` : '""';
+    let durationText = 'Active / On Floor';
+    if (a.checkInTime && a.checkOutTime) {
+      const inM = parseTimeStrToMinutes(a.checkInTime);
+      const outM = parseTimeStrToMinutes(a.checkOutTime);
+      if (inM !== null && outM !== null) {
+        durationText = `${Math.max(0, outM - inM)} mins`;
+      } else {
+        durationText = 'Completed';
+      }
+    }
+
+    rows.push([
+      `"${selectedReportDate}"`,
+      `"Attendance Punch"`,
+      `"${a.memberId}"`,
+      `"${(a.memberName || '').replace(/"/g, '""')}"`,
+      cleanPhone,
+      `"${(member.planName || '-').replace(/"/g, '""')}"`,
+      `"${a.checkInTime || ''}"`,
+      `"${a.checkOutTime || 'On Floor'}"`,
+      `"${durationText}"`,
+      `"${a.status || 'Completed'}"`,
+      0,
+      `"Floor workout session"`
+    ].join(','));
   });
 
-  const encodedUri = encodeURI('data:text/csv;charset=utf-8,' + csv);
-  const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
-  link.setAttribute('download', `OG_Fitness_Daily_Report_${selectedReportDate}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  // 3. Add Expired Members
+  expiries.forEach(m => {
+    const cleanPhone = m.phone ? `="${m.phone}"` : '""';
+    rows.push([
+      `"${selectedReportDate}"`,
+      `"Membership Expired"`,
+      `"${m.id}"`,
+      `"${(m.name || '').replace(/"/g, '""')}"`,
+      cleanPhone,
+      `"${(m.planName || '').replace(/"/g, '""')}"`,
+      `"-"`,
+      `"-"`,
+      `"-"`,
+      `"Expired"`,
+      0,
+      `"Plan expired on ${selectedReportDate} - Renewal due"`
+    ].join(','));
+  });
+
+  if (rows.length === 0) {
+    rows.push([
+      `"${selectedReportDate}"`,
+      `"Summary"`,
+      `"-"`,
+      `"-"`,
+      `"-"`,
+      `"-"`,
+      `"-"`,
+      `"-"`,
+      `"-"`,
+      `"No Activity"`,
+      0,
+      `"No admissions or attendance recorded on this date"`
+    ].join(','));
+  }
+
+  const csvContent = headers.join(',') + '\r\n' + rows.join('\r\n');
+  downloadCsvBlob(`OG_Fitness_Daily_Audit_${selectedReportDate}.csv`, csvContent);
+  showNotification(`📊 Daily audit report for ${selectedReportDate} downloaded as Excel CSV!`, 'success');
 }
 
 // ----------------------------------------------------
@@ -1984,6 +2114,7 @@ async function setupDeskStandeeQr() {
 }
 
 function printTableStandee() {
+  document.body.classList.remove('print-report', 'print-id-card');
   document.body.classList.add('print-standee');
   window.print();
   setTimeout(() => {
