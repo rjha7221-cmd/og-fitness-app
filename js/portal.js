@@ -202,8 +202,68 @@ function saveMembers(members) {
   localStorage.setItem(DB_KEYS.MEMBERS, JSON.stringify(members));
 }
 
+function parseTimeStrToMinutes(timeStr) {
+  if (!timeStr) return null;
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridian = match[3] ? match[3].toUpperCase() : null;
+  if (meridian === 'PM' && hours < 12) hours += 12;
+  if (meridian === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+function formatMinutesToTimeStr(totalMinutes) {
+  let mins = ((totalMinutes % 1440) + 1440) % 1440;
+  const hours = Math.floor(mins / 60);
+  const remainingMins = mins % 60;
+  const meridian = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = String(hours % 12 || 12).padStart(2, '0');
+  const displayMins = String(remainingMins).padStart(2, '0');
+  return `${displayHours}:${displayMins} ${meridian}`;
+}
+
+function autoResolveFloorAttendanceClient(attendance) {
+  const settings = getGymSettings();
+  const autoCheckoutMins = parseInt(settings.autoCheckoutMinutes) || 90;
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  let updated = false;
+
+  attendance.forEach(rec => {
+    if (!rec.checkOutTime) {
+      if (rec.date && rec.date < TODAY_STR) {
+        rec.checkOutTime = rec.checkInTime || 'Completed';
+        rec.status = 'Completed (Auto)';
+        updated = true;
+        return;
+      }
+      if (rec.date === TODAY_STR && rec.checkInTime) {
+        const inMins = parseTimeStrToMinutes(rec.checkInTime);
+        if (inMins !== null) {
+          const elapsedMins = nowMins - inMins;
+          if (elapsedMins >= autoCheckoutMins) {
+            rec.checkOutTime = formatMinutesToTimeStr(inMins + autoCheckoutMins);
+            rec.status = 'Completed (Auto)';
+            updated = true;
+          }
+        }
+      }
+    }
+  });
+
+  if (updated) {
+    try {
+      localStorage.setItem(DB_KEYS.ATTENDANCE, JSON.stringify(attendance));
+    } catch(e) {}
+  }
+  return attendance;
+}
+
 function getAttendance() {
-  return JSON.parse(localStorage.getItem(DB_KEYS.ATTENDANCE) || '[]');
+  const list = JSON.parse(localStorage.getItem(DB_KEYS.ATTENDANCE) || '[]');
+  return autoResolveFloorAttendanceClient(list);
 }
 
 function saveAttendance(records) {
@@ -658,31 +718,86 @@ function renderOnFloorTable() {
 
   const attendance = getAttendance();
   const onFloor = attendance.filter(a => a.date === TODAY_STR && !a.checkOutTime);
+  const settings = getGymSettings();
+  const autoCheckoutMins = parseInt(settings.autoCheckoutMinutes) || 90;
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
 
   const html = onFloor.length === 0 ? `
     <div class="text-center py-10 text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
       <i class="fa-solid fa-person-running text-3xl mb-2 text-slate-300 block"></i>
       <span class="text-xs font-medium">Gym floor par filhal koi checked-in nahi hai.</span>
-    </div>` : onFloor.map(rec => `
-    <div class="p-3.5 sm:p-4 rounded-xl bg-white hover:bg-slate-50/80 border border-slate-200 flex items-center justify-between gap-3 transition shadow-sm">
+    </div>` : onFloor.map(rec => {
+      const inMins = parseTimeStrToMinutes(rec.checkInTime);
+      let durationBadge = '';
+      if (inMins !== null) {
+        const elapsed = Math.max(0, nowMins - inMins);
+        const remaining = Math.max(0, autoCheckoutMins - elapsed);
+        durationBadge = `
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200" title="Auto-checkout in ${remaining} minutes">
+            <i class="fa-solid fa-stopwatch text-[9px]"></i>
+            <span>${elapsed > 0 ? elapsed + 'm in gym' : 'Just now'} &bull; auto-out in ${remaining}m</span>
+          </span>
+        `;
+      }
+
+      return `
+    <div class="p-3.5 sm:p-4 rounded-xl bg-white hover:bg-slate-50/80 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition shadow-sm">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center font-bold text-emerald-700 text-xs shadow-sm">
+        <div class="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center font-bold text-emerald-700 text-xs shadow-sm flex-shrink-0">
           ${rec.memberName.split(' ').map(n=>n[0]).join('')}
         </div>
         <div>
-          <div class="text-xs sm:text-sm font-bold text-slate-900">${rec.memberName}</div>
-          <div class="text-[11px] text-slate-500 font-mono">${rec.memberId} &bull; Check-in: <span class="text-emerald-700 font-bold">${rec.checkInTime}</span></div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs sm:text-sm font-bold text-slate-900">${rec.memberName}</span>
+            ${durationBadge}
+          </div>
+          <div class="text-[11px] text-slate-500 font-mono mt-0.5">${rec.memberId} &bull; Check-in: <span class="text-emerald-700 font-bold">${rec.checkInTime}</span></div>
         </div>
       </div>
-      <button onclick="punchAttendance('${rec.memberId}')" class="px-3.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+      <button onclick="punchAttendance('${rec.memberId}')" class="self-end sm:self-center px-3.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
         <i class="fa-solid fa-arrow-right-from-bracket"></i>
         <span>Punch Out</span>
       </button>
     </div>
-  `).join('');
+      `;
+    }).join('');
 
   if (container) container.innerHTML = html;
   if (dedicatedContainer) dedicatedContainer.innerHTML = html;
+}
+
+async function clearFloorNow() {
+  const attendance = getAttendance();
+  const onFloor = attendance.filter(a => a.date === TODAY_STR && !a.checkOutTime);
+  if (onFloor.length === 0) {
+    showNotification('Gym floor par filhal koi checked-in member nahi hai.', 'info');
+    return;
+  }
+
+  if (!confirm(`Kya aap floor ke sabhi ${onFloor.length} active members ko Checkout mark karna chahte hain?`)) {
+    return;
+  }
+
+  const nowFormatted = getCurrentTimeFormatted();
+  attendance.forEach(rec => {
+    if (!rec.checkOutTime && (rec.date === TODAY_STR || rec.date < TODAY_STR)) {
+      rec.checkOutTime = nowFormatted;
+      rec.status = 'Completed';
+    }
+  });
+  saveAttendance(attendance);
+  renderAllViews();
+
+  try {
+    const res = await fetch('/api/attendance/clear-floor', { method: 'POST' });
+    if (res.ok) {
+      const result = await res.json();
+      showNotification(`🧹 Floor Cleared! ${result.clearedCount || onFloor.length} members checked out.`, 'success');
+    }
+  } catch (err) {
+    showNotification(`🧹 Floor cleared: ${onFloor.length} members checked out.`, 'success');
+  }
 }
 
 function renderExpiryAlerts() {
@@ -1232,6 +1347,9 @@ function applyGymSettings(s) {
   if (eveningInput) eveningInput.value = s.eveningTiming || '';
   if (upiInput) upiInput.value = s.upiId || '';
 
+  const autoCheckoutInput = document.getElementById('settings-auto-checkout-mins');
+  if (autoCheckoutInput) autoCheckoutInput.value = s.autoCheckoutMinutes || 90;
+
   // WhatsApp Gateway Settings
   const wa = s.whatsapp || {};
   const waAuto = document.getElementById('settings-wa-auto');
@@ -1336,6 +1454,7 @@ async function saveGymSettings() {
   const morningTiming = document.getElementById('settings-morning-timing')?.value.trim() || current.morningTiming;
   const eveningTiming = document.getElementById('settings-evening-timing')?.value.trim() || current.eveningTiming;
   const upiId = document.getElementById('settings-upi-id')?.value.trim() || current.upiId;
+  const autoCheckoutMinutes = parseInt(document.getElementById('settings-auto-checkout-mins')?.value) || 90;
 
   // Update plan prices
   const plans = getPlans();
@@ -1373,6 +1492,7 @@ async function saveGymSettings() {
     morningTiming,
     eveningTiming,
     upiId,
+    autoCheckoutMinutes,
     whatsapp,
     plans
   };
@@ -1517,6 +1637,12 @@ document.addEventListener('DOMContentLoaded', () => {
   renderAllViews();
   initRealtimeSync();
   setupDeskStandeeQr();
+
+  // Periodic 60-second floor auto-resolve and countdown ticker
+  setInterval(() => {
+    renderMetrics();
+    renderOnFloorTable();
+  }, 60 * 1000);
 
   // New Member Form Logic
   const newMemberForm = document.getElementById('new-member-form');
@@ -1770,6 +1896,11 @@ function initRealtimeSync() {
           const payload = JSON.parse(event.data);
           if (payload.type === 'MEMBER_PUNCH') {
             handleIncomingRemotePunch(payload.data);
+          } else if (payload.type === 'FLOOR_CLEARED') {
+            syncAttendanceFromBackend();
+            showNotification(`🧹 Floor Cleared: ${payload.data.clearedCount} active members checked out at ${payload.data.time}.`, 'info');
+          } else if (payload.type === 'WHATSAPP_AUTO_SENT') {
+            showNotification(`📲 Auto WhatsApp Sent to ${payload.data.memberName} (${payload.data.phone})`, 'success');
           } else if (payload.type === 'MEMBER_DELETED') {
             const members = getMembers().filter(m => m.id !== payload.data.memberId);
             saveMembers(members);
@@ -1782,6 +1913,19 @@ function initRealtimeSync() {
       };
     } catch(e) {}
   }
+}
+
+async function syncAttendanceFromBackend() {
+  try {
+    const res = await fetch('/api/attendance');
+    if (res.ok) {
+      const list = await res.json();
+      if (Array.isArray(list)) {
+        localStorage.setItem(DB_KEYS.ATTENDANCE, JSON.stringify(list));
+        renderAllViews();
+      }
+    }
+  } catch(e) {}
 }
 
 function handleIncomingRemotePunch(data) {

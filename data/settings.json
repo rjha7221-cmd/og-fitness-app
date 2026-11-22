@@ -9,6 +9,7 @@
   "eveningTiming": "04:30 PM - 10:00 PM",
   "upiId": "ogfitness@upi",
   "standeeUrl": "https://og-fitness-app.onrender.com/punch.html",
+  "autoCheckoutMinutes": 90,
   "whatsapp": {
     "autoSendEnabled": true,
     "sendHour": 9,

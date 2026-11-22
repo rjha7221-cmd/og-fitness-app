@@ -93,6 +93,148 @@ function sendWhatsAppViaUltraMsg(instanceId, token, phone, message) {
   });
 }
 
+// ==========================================
+// Data Persistence & Storage Configuration
+// ==========================================
+const DATA_DIR = path.join(__dirname, 'data');
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+const MEMBERS_FILE = path.join(DATA_DIR, 'members.json');
+const ATTENDANCE_FILE = path.join(DATA_DIR, 'attendance.json');
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+
+const DEFAULT_SETTINGS = {
+  ownerName: 'Rishi Jha',
+  gymName: 'OG Fitness',
+  phone: '9876543210',
+  email: 'owner@ogfitness.com',
+  address: 'City Center, Main Road',
+  profileImage: '',
+  morningTiming: '06:00 AM - 11:30 AM',
+  eveningTiming: '04:30 PM - 10:00 PM',
+  upiId: 'ogfitness@upi',
+  standeeUrl: 'https://og-fitness-app.onrender.com/punch.html',
+  autoCheckoutMinutes: 90,
+  whatsapp: {
+    autoSendEnabled: true,
+    sendHour: 9,
+    instanceId: '',
+    token: '',
+    testPhone: '7440858141'
+  },
+  plans: [
+    { id: 'p1', name: '1 Month Essential', price: 1499, durationDays: 30 },
+    { id: 'p2', name: '3 Months Strength', price: 3999, durationDays: 90 },
+    { id: 'p3', name: '6 Months Pro Athlete', price: 6999, durationDays: 180 },
+    { id: 'p4', name: '12 Months Elite VIP', price: 11999, durationDays: 365 }
+  ]
+};
+
+function parseTimeStrToMinutes(timeStr) {
+  if (!timeStr) return null;
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridian = match[3] ? match[3].toUpperCase() : null;
+  if (meridian === 'PM' && hours < 12) hours += 12;
+  if (meridian === 'AM' && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
+
+function formatMinutesToTimeStr(totalMinutes) {
+  let mins = ((totalMinutes % 1440) + 1440) % 1440;
+  const hours = Math.floor(mins / 60);
+  const remainingMins = mins % 60;
+  const meridian = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = String(hours % 12 || 12).padStart(2, '0');
+  const displayMins = String(remainingMins).padStart(2, '0');
+  return `${displayHours}:${displayMins} ${meridian}`;
+}
+
+function getTodayStrIST() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+
+function getNowMinutesIST() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false
+  }).formatToParts(new Date());
+  const h = parseInt(parts.find(p => p.type === 'hour').value, 10);
+  const m = parseInt(parts.find(p => p.type === 'minute').value, 10);
+  return h * 60 + m;
+}
+
+function autoResolveFloorAttendance(attendance) {
+  const settings = getStoredSettings();
+  const autoCheckoutMins = parseInt(settings.autoCheckoutMinutes) || 90;
+  const todayStr = getTodayStrIST();
+  const nowMins = getNowMinutesIST();
+  let updated = false;
+
+  attendance.forEach(rec => {
+    if (!rec.checkOutTime) {
+      if (rec.date && rec.date < todayStr) {
+        rec.checkOutTime = rec.checkInTime || 'Completed';
+        rec.status = 'Completed (Auto)';
+        updated = true;
+        return;
+      }
+      if (rec.date === todayStr && rec.checkInTime) {
+        const inMins = parseTimeStrToMinutes(rec.checkInTime);
+        if (inMins !== null) {
+          const elapsedMins = nowMins - inMins;
+          if (elapsedMins >= autoCheckoutMins) {
+            rec.checkOutTime = formatMinutesToTimeStr(inMins + autoCheckoutMins);
+            rec.status = 'Completed (Auto)';
+            updated = true;
+          }
+        }
+      }
+    }
+  });
+
+  if (updated) {
+    saveStoredAttendance(attendance);
+  }
+  return attendance;
+}
+
+function getStoredMembers() {
+  if (fs.existsSync(MEMBERS_FILE)) {
+    try { return JSON.parse(fs.readFileSync(MEMBERS_FILE, 'utf8')); } catch (e) {}
+  }
+  return [];
+}
+function saveStoredMembers(members) {
+  fs.writeFileSync(MEMBERS_FILE, JSON.stringify(members, null, 2), 'utf8');
+}
+
+function getStoredAttendance() {
+  let list = [];
+  if (fs.existsSync(ATTENDANCE_FILE)) {
+    try { list = JSON.parse(fs.readFileSync(ATTENDANCE_FILE, 'utf8')); } catch (e) {}
+  }
+  return autoResolveFloorAttendance(list);
+}
+function saveStoredAttendance(att) {
+  fs.writeFileSync(ATTENDANCE_FILE, JSON.stringify(att, null, 2), 'utf8');
+}
+
+function getStoredSettings() {
+  if (fs.existsSync(SETTINGS_FILE)) {
+    try { return { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) }; } catch (e) {}
+  }
+  return DEFAULT_SETTINGS;
+}
+function saveStoredSettings(settings) {
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8');
+}
+
 function generateExpiryReminderText(member, gymName, gymPhone, daysRemaining) {
   let urgency = 'khatam ho chuki hai';
   if (daysRemaining === 2) urgency = '2 din me';
@@ -217,72 +359,7 @@ const server = http.createServer((req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = parsedUrl.pathname;
 
-// Data persistence files
-const DATA_DIR = path.join(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-const MEMBERS_FILE = path.join(DATA_DIR, 'members.json');
-const ATTENDANCE_FILE = path.join(DATA_DIR, 'attendance.json');
-const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
-
-const DEFAULT_SETTINGS = {
-  ownerName: 'Rishi Jha',
-  gymName: 'OG Fitness',
-  phone: '9876543210',
-  email: 'owner@ogfitness.com',
-  address: 'City Center, Main Road',
-  profileImage: '',
-  morningTiming: '06:00 AM - 11:30 AM',
-  eveningTiming: '04:30 PM - 10:00 PM',
-  upiId: 'ogfitness@upi',
-  standeeUrl: 'https://og-fitness-app.onrender.com/punch.html',
-  whatsapp: {
-    autoSendEnabled: true,
-    sendHour: 9,
-    instanceId: '',
-    token: '',
-    testPhone: '7440858141'
-  },
-  plans: [
-    { id: 'p1', name: '1 Month Essential', price: 1499, durationDays: 30 },
-    { id: 'p2', name: '3 Months Strength', price: 3999, durationDays: 90 },
-    { id: 'p3', name: '6 Months Pro Athlete', price: 6999, durationDays: 180 },
-    { id: 'p4', name: '12 Months Elite VIP', price: 11999, durationDays: 365 }
-  ]
-};
-
-function getStoredMembers() {
-  if (fs.existsSync(MEMBERS_FILE)) {
-    try { return JSON.parse(fs.readFileSync(MEMBERS_FILE, 'utf8')); } catch (e) {}
-  }
-  return [];
-}
-function saveStoredMembers(members) {
-  fs.writeFileSync(MEMBERS_FILE, JSON.stringify(members, null, 2), 'utf8');
-}
-
-function getStoredAttendance() {
-  if (fs.existsSync(ATTENDANCE_FILE)) {
-    try { return JSON.parse(fs.readFileSync(ATTENDANCE_FILE, 'utf8')); } catch (e) {}
-  }
-  return [];
-}
-function saveStoredAttendance(att) {
-  fs.writeFileSync(ATTENDANCE_FILE, JSON.stringify(att, null, 2), 'utf8');
-}
-
-function getStoredSettings() {
-  if (fs.existsSync(SETTINGS_FILE)) {
-    try { return { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) }; } catch (e) {}
-  }
-  return DEFAULT_SETTINGS;
-}
-function saveStoredSettings(settings) {
-  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8');
-}
-
-// 1. API: Get Local IP & Standee QR URL
+  // 1. API: Get Local IP & Standee QR URL
   if (pathname === '/api/info' && req.method === 'GET') {
     const localIp = getLocalIpAddress();
     const settings = getStoredSettings();
@@ -490,6 +567,33 @@ function saveStoredSettings(settings) {
         res.end(JSON.stringify({ success: false, error: 'Invalid JSON payload' }));
       }
     });
+    return;
+  }
+
+  // 5b. API: Manual Clear Floor (Checkout All Active Members)
+  if (pathname === '/api/attendance/clear-floor' && req.method === 'POST') {
+    const attendance = getStoredAttendance();
+    const todayStr = getTodayStrIST();
+    const currentTimeStr = new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true });
+    let clearedCount = 0;
+
+    attendance.forEach(rec => {
+      if (!rec.checkOutTime && (rec.date === todayStr || rec.date < todayStr)) {
+        rec.checkOutTime = currentTimeStr;
+        rec.status = 'Completed';
+        clearedCount++;
+      }
+    });
+
+    saveStoredAttendance(attendance);
+
+    broadcastToClients({
+      type: 'FLOOR_CLEARED',
+      data: { clearedCount, time: currentTimeStr }
+    });
+
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ success: true, clearedCount, message: `Floor cleared: ${clearedCount} members checked out.` }));
     return;
   }
 
