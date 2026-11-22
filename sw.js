@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'og-fitness-v1';
+const CACHE_NAME = 'og-fitness-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -49,7 +49,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           return response;
         })
-        .catch(() => caches.match(event.request).then((res) => res || caches.match('/punch.html')))
+        .catch(() => caches.match(event.request).then((res) => res || caches.match('/index.html') || caches.match('/punch.html')))
     );
     return;
   }

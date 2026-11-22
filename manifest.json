@@ -1,13 +1,13 @@
-﻿{
-  "name": "OG Fitness - Gym Portal & Attendance",
+{
+  "name": "OG Fitness - Gym Portal & Management",
   "short_name": "OG Fitness",
   "description": "OG Fitness Gym Management, Member Directory, and QR Attendance Punch",
-  "start_url": "/punch.html",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#ea580c",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "icons": [
     {
       "src": "/icon.svg",

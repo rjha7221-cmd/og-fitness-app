@@ -192,6 +192,12 @@
           <span class="hidden sm:inline">Scan QR</span>
         </button>
 
+        <!-- Install App Button (PWA) -->
+        <button id="pwa-header-install-btn" style="display: none;" class="px-3 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-mobile-screen"></i>
+          <span>Install App</span>
+        </button>
+
         <!-- Add Member Button -->
         <button onclick="switchTab('new-member')" class="btn-solar px-4 py-2 rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5">
           <i class="fa-solid fa-plus text-xs"></i>
@@ -1311,8 +1317,30 @@
   <!-- App Core Logic -->
   <script src="js/portal.js"></script>
 
-  <!-- PWA Service Worker Registration -->
+  <!-- PWA Service Worker Registration & Header Install Button -->
   <script>
+    let deferredPromptOwner = null;
+    const ownerInstallBtn = document.getElementById('pwa-header-install-btn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPromptOwner = e;
+      if (ownerInstallBtn) ownerInstallBtn.style.display = 'inline-flex';
+    });
+
+    if (ownerInstallBtn) {
+      ownerInstallBtn.addEventListener('click', async () => {
+        if (deferredPromptOwner) {
+          deferredPromptOwner.prompt();
+          const { outcome } = await deferredPromptOwner.userChoice;
+          if (outcome === 'accepted') {
+            ownerInstallBtn.style.display = 'none';
+          }
+          deferredPromptOwner = null;
+        }
+      });
+    }
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
