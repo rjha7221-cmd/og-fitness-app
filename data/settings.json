@@ -8,7 +8,7 @@
   "morningTiming": "06:00 AM - 11:30 AM",
   "eveningTiming": "04:30 PM - 10:00 PM",
   "upiId": "ogfitness@upi",
-  "standeeUrl": "https://bc6aa719329abb0d-152-59-28-175.serveousercontent.com/punch.html",
+  "standeeUrl": "https://og-fitness-app.onrender.com/punch.html",
   "plans": [
     {
       "id": "p1",
