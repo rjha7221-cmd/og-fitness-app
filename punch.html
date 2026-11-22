@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>OG FITNESS | Member Self-Check In Desk</title>
+  <meta name="description" content="Member self-check in page for OG Fitness reception table QR standee.">
+
+  <!-- PWA Manifest & App Config -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <meta name="theme-color" content="#ea580c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OG Fitness">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            solar: {
+              DEFAULT: '#FD630A',
+              light: '#FD853F',
+              dark: '#D44F02',
+            },
+            midnight: {
+              DEFAULT: '#0A0E17',
+              card: '#151F30',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '"Inter"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #F8FAFC;
+      color: #0F172A;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .bg-solar-gradient {
+      background: linear-gradient(115deg, #FD853F 0%, #FD630A 55%, #D44F02 100%) !important;
+    }
+    .text-solar-gradient {
+      background: linear-gradient(115deg, #FD853F 0%, #FD630A 55%, #D44F02 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .solar-glow {
+      box-shadow: 0 4px 20px rgba(253, 99, 10, 0.25);
+    }
+    .solar-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.08);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-4 sm:p-6 selection:bg-orange-500 selection:text-white">
+
+  <!-- Header -->
+  <header class="text-center pt-4 pb-2">
+    <div class="inline-flex items-center justify-center space-x-2.5 mb-2">
+      <div class="w-10 h-10 rounded-xl bg-solar-gradient flex items-center justify-center text-white font-black text-xl shadow-md shadow-orange-500/30">
+        <i class="fa-solid fa-dumbbell"></i>
+      </div>
+      <span class="text-3xl font-extrabold tracking-tight text-slate-900">
+        OG <span class="text-solar-gradient">FITNESS</span>
+      </span>
+    </div>
+    <div class="inline-flex items-center gap-2 bg-white border border-slate-200 px-3.5 py-1.5 rounded-full text-xs font-mono text-slate-700 shadow-sm">
+      <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+      <span class="font-semibold">Desk Self Punch System</span>
+      <span class="text-slate-300">|</span>
+      <span id="current-time" class="text-slate-900 font-bold">--:--</span>
+    </div>
+  </header>
+
+  <!-- Main Punch Box -->
+  <main class="max-w-md w-full mx-auto my-auto py-4">
+    
+    <!-- State 1: Punch Input Form (Name Based) -->
+    <div id="punch-input-card" class="solar-card rounded-3xl p-6 sm:p-8 space-y-5 relative overflow-hidden">
+      <div class="text-center space-y-1">
+        <h2 class="text-xl font-bold text-slate-900">Daily Workout Punch</h2>
+        <p class="text-xs text-slate-500">Apna Registered Naam search karein aur attendance lagayein.</p>
+      </div>
+
+      <!-- PWA Install Prompt Banner -->
+      <div id="pwa-install-banner" style="display: none;" class="p-3 bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl text-white items-center justify-between shadow-md">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center text-sm font-bold">
+            <i class="fa-solid fa-mobile-screen"></i>
+          </div>
+          <div class="text-left leading-tight">
+            <div class="text-xs font-bold">Install OG Fitness App</div>
+            <div class="text-[10px] text-white/80">Add to Phone Home Screen</div>
+          </div>
+        </div>
+        <button type="button" id="pwa-install-btn" class="px-3 py-1.5 rounded-xl bg-white text-orange-600 font-bold text-xs uppercase shadow-sm hover:bg-orange-50 active:scale-95 transition">
+          Install
+        </button>
+      </div>
+
+      <form id="member-punch-form" class="space-y-4">
+        <!-- Selected Member Preview (Shown when member is selected) -->
+        <div id="selected-member-card" style="display: none;" class="p-4 rounded-2xl bg-orange-50/70 border-2 border-orange-400 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-orange-600">Selected Gym Member</span>
+            <button type="button" onclick="clearSelectedMember()" class="text-xs text-slate-400 hover:text-rose-600 font-semibold transition">
+              <i class="fa-solid fa-rotate-left mr-1"></i>Change
+            </button>
+          </div>
+          <div class="flex items-center gap-3">
+            <div id="sel-avatar" class="w-11 h-11 rounded-full bg-orange-500 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+              -
+            </div>
+            <div>
+              <div id="sel-name" class="text-base font-bold text-slate-900">Member Name</div>
+              <div id="sel-details" class="text-xs text-slate-500 font-mono">OG-1001 &bull; 3 Months Strength</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Name Search & Dropdown Input -->
+        <div id="name-search-group" class="relative">
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+            <span>Member Ka Naam (Full Name)</span>
+            <span class="text-[10px] text-orange-600 font-medium">Type to search...</span>
+          </label>
+          <div class="relative">
+            <i class="fa-solid fa-user absolute left-4 top-4 text-orange-600 text-base"></i>
+            <input type="text" id="member-name-input" autocomplete="off" placeholder="Apna naam likhein (e.g. Rahul, Priya)..." class="w-full bg-slate-50 border border-slate-300 focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/20 rounded-2xl pl-12 pr-4 py-3.5 text-base sm:text-lg text-slate-900 tracking-wide focus:outline-none transition">
+          </div>
+
+          <!-- Dynamic Member Dropdown List -->
+          <div id="member-dropdown-list" style="display: none;" class="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-20 max-h-56 overflow-y-auto divide-y divide-slate-100">
+            <!-- Populated dynamically via JS -->
+          </div>
+        </div>
+
+        <input type="hidden" id="selected-member-id" value="">
+
+        <!-- Quick Remember Switch -->
+        <label class="flex items-center gap-2.5 text-xs text-slate-600 cursor-pointer pt-1">
+          <input type="checkbox" id="remember-me" checked class="w-4 h-4 rounded accent-orange-600">
+          <span>Remember my name on this phone</span>
+        </label>
+
+        <!-- Punch In Button -->
+        <button type="submit" id="punch-btn" class="w-full bg-solar-gradient text-white font-bold py-4 rounded-2xl text-base uppercase tracking-wider shadow-lg shadow-orange-500/30 hover:opacity-95 active:scale-[0.98] transition flex items-center justify-center gap-2.5">
+          <i class="fa-solid fa-fingerprint text-xl"></i>
+          <span id="btn-text">Punch In / Out Now</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- State 2: Success Confirmation Card (Hidden by default) -->
+    <div id="punch-success-card" style="display: none;" class="solar-card rounded-3xl p-6 sm:p-8 text-center space-y-4 border-2 border-orange-500/30 animate-fade-in">
+      <div class="w-20 h-20 rounded-full bg-orange-50 border-2 border-orange-500 text-orange-600 flex items-center justify-center text-4xl mx-auto shadow-md">
+        <i class="fa-solid fa-check"></i>
+      </div>
+
+      <div>
+        <span id="success-type" class="text-orange-600 font-extrabold text-xs uppercase tracking-widest">PUNCH IN CONFIRMED</span>
+        <h3 id="success-name" class="text-3xl font-bold text-slate-900 mt-1">Rohit Verma</h3>
+        <p id="success-id" class="text-xs text-slate-500 font-mono">OG-1001 &bull; +91 9811223344</p>
+      </div>
+
+      <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2 text-left text-xs font-mono">
+        <div class="flex justify-between items-center">
+          <span class="text-slate-500 font-sans">Punch Time:</span>
+          <span id="success-time" class="text-orange-600 font-bold text-sm">07:45 AM</span>
+        </div>
+        <div class="flex justify-between items-center border-t border-slate-200 pt-2">
+          <span class="text-slate-500 font-sans">Plan:</span>
+          <span id="success-plan" class="text-slate-900 font-semibold font-sans">3 Months Strength</span>
+        </div>
+        <div class="flex justify-between items-center border-t border-slate-200 pt-2">
+          <span class="text-slate-500 font-sans">Membership:</span>
+          <span id="success-validity" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">Active</span>
+        </div>
+      </div>
+
+      <!-- Expiry Warning if <= 2 days -->
+      <div id="success-expiry-alert" style="display: none;" class="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-semibold text-left flex items-start gap-2.5">
+        <i class="fa-solid fa-triangle-exclamation text-base flex-shrink-0 mt-0.5 text-amber-600"></i>
+        <div>
+          <span>Reminder: Aapki membership <b>2 din me expire</b> ho rahi hai. Kripya reception desk par renew karwayein!</span>
+        </div>
+      </div>
+
+      <div class="pt-2">
+        <button onclick="resetPunchView()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-2xl text-xs uppercase tracking-wider transition shadow-sm">
+          Done (Next Member)
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="text-center py-4 text-slate-500 text-xs">
+    <p>OG FITNESS DESK ATTENDANCE &bull; Have a great workout! 💪🔥</p>
+  </footer>
+
+  <!-- Web Audio Synthesizer for Phone Chime -->
+  <script>
+    function playChime() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, now); // D5
+        osc.frequency.setValueAtTime(880.00, now + 0.12); // A5
+
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.exponentialRampToValueAtTime(0.3, now + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.5);
+      } catch (e) {
+        console.log(e);
+      }
+    }
+
+    // Update live clock
+    function updateClock() {
+      const el = document.getElementById('current-time');
+      if (el) {
+        el.textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      }
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    let registeredMembers = [];
+    let selectedMember = null;
+
+    async function loadMembersList() {
+      // Load from local storage or server API
+      let local = JSON.parse(localStorage.getItem('og_members') || '[]');
+      try {
+        const res = await fetch('/api/members');
+        if (res.ok) {
+          const apiMembers = await res.json();
+          if (Array.isArray(apiMembers) && apiMembers.length > 0) {
+            registeredMembers = apiMembers;
+          } else {
+            registeredMembers = local;
+          }
+        } else {
+          registeredMembers = local;
+        }
+      } catch (e) {
+        registeredMembers = local;
+      }
+
+      // Check for remembered member
+      const savedMemberId = localStorage.getItem('og_saved_member_id');
+      if (savedMemberId && registeredMembers.length > 0) {
+        const found = registeredMembers.find(m => m.id === savedMemberId);
+        if (found) {
+          selectMember(found);
+        }
+      }
+    }
+
+    // Dropdown and name filtering
+    const nameInput = document.getElementById('member-name-input');
+    const dropdownList = document.getElementById('member-dropdown-list');
+
+    if (nameInput) {
+      nameInput.addEventListener('input', () => {
+        const query = nameInput.value.trim().toLowerCase();
+        if (!query) {
+          dropdownList.style.display = 'none';
+          return;
+        }
+
+        const matches = registeredMembers.filter(m => 
+          m.name.toLowerCase().includes(query) || 
+          m.id.toLowerCase().includes(query)
+        );
+
+        if (matches.length === 0) {
+          dropdownList.innerHTML = `
+            <div class="p-3.5 text-xs text-slate-400 text-center">
+              Koi member iss naam se nahi mila.<br>
+              <span class="text-[10px] text-orange-600">Reception desk par apna registration check karein.</span>
+            </div>`;
+          dropdownList.style.display = 'block';
+          return;
+        }
+
+        dropdownList.innerHTML = matches.map(m => `
+          <div onclick="selectMemberById('${m.id}')" class="p-3 hover:bg-orange-50 cursor-pointer flex items-center justify-between gap-3 transition">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-full bg-orange-100 text-orange-600 font-bold flex items-center justify-center text-xs flex-shrink-0">
+                ${m.name.split(' ').map(n=>n[0]).join('')}
+              </div>
+              <div>
+                <div class="text-xs font-bold text-slate-900">${m.name}</div>
+                <div class="text-[10px] text-slate-500 font-mono">${m.id} &bull; ${m.planName || 'Active'}</div>
+              </div>
+            </div>
+            <span class="text-[11px] font-bold text-orange-600 bg-orange-100/60 px-2 py-0.5 rounded-full">Select</span>
+          </div>
+        `).join('');
+        dropdownList.style.display = 'block';
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#name-search-group')) {
+          if (dropdownList) dropdownList.style.display = 'none';
+        }
+      });
+    }
+
+    function selectMemberById(id) {
+      const found = registeredMembers.find(m => m.id === id);
+      if (found) selectMember(found);
+    }
+
+    function selectMember(member) {
+      selectedMember = member;
+      document.getElementById('selected-member-id').value = member.id;
+      document.getElementById('name-search-group').style.display = 'none';
+
+      const card = document.getElementById('selected-member-card');
+      const avatar = document.getElementById('sel-avatar');
+      const name = document.getElementById('sel-name');
+      const details = document.getElementById('sel-details');
+
+      if (avatar) avatar.textContent = member.name.split(' ').map(n=>n[0]).join('');
+      if (name) name.textContent = member.name;
+      if (details) details.textContent = `${member.id} • ${member.planName || 'Member Pass'}`;
+
+      card.style.display = 'block';
+      if (dropdownList) dropdownList.style.display = 'none';
+    }
+
+    function clearSelectedMember() {
+      selectedMember = null;
+      document.getElementById('selected-member-id').value = '';
+      document.getElementById('selected-member-card').style.display = 'none';
+      document.getElementById('name-search-group').style.display = 'block';
+      if (nameInput) {
+        nameInput.value = '';
+        nameInput.focus();
+      }
+      localStorage.removeItem('og_saved_member_id');
+    }
+
+    function resetPunchView() {
+      document.getElementById('punch-success-card').style.display = 'none';
+      document.getElementById('punch-input-card').style.display = 'block';
+    }
+
+    // Initialize member list
+    loadMembersList();
+
+    // Handle Form Submit
+    document.getElementById('member-punch-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      let member = selectedMember;
+
+      // If user typed a name directly without clicking dropdown
+      if (!member) {
+        const typed = nameInput?.value.trim();
+        if (typed) {
+          member = registeredMembers.find(m => m.name.toLowerCase() === typed.toLowerCase());
+          if (!member) {
+            member = registeredMembers.find(m => m.name.toLowerCase().includes(typed.toLowerCase()));
+          }
+        }
+      }
+
+      if (!member) {
+        alert('Kripya list se apna naam select karein.');
+        if (nameInput) nameInput.focus();
+        return;
+      }
+
+      const rememberMe = document.getElementById('remember-me').checked;
+      if (rememberMe) {
+        localStorage.setItem('og_saved_member_id', member.id);
+      } else {
+        localStorage.removeItem('og_saved_member_id');
+      }
+
+      const punchTime = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const todayDateStr = new Date().toISOString().split('T')[0];
+
+      // Save punch in local attendance record if on same device
+      let attendance = JSON.parse(localStorage.getItem('og_attendance') || '[]');
+      const existingOnFloor = attendance.find(a => a.date === todayDateStr && a.memberId === member.id && !a.checkOutTime);
+
+      let punchType = 'Check-In';
+      if (existingOnFloor) {
+        existingOnFloor.checkOutTime = punchTime;
+        existingOnFloor.status = 'Completed';
+        punchType = 'Check-Out';
+      } else {
+        attendance.unshift({
+          id: 'att-' + Date.now(),
+          date: todayDateStr,
+          memberId: member.id,
+          memberName: member.name,
+          checkInTime: punchTime,
+          checkOutTime: null,
+          status: 'On Floor'
+        });
+      }
+      localStorage.setItem('og_attendance', JSON.stringify(attendance));
+
+      // 1. Post to Server API (SSE will broadcast this to Owner Desk!)
+      try {
+        await fetch('/api/punch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            memberId: member.id,
+            memberName: member.name,
+            phone: member.phone,
+            planName: member.planName,
+            expiryDate: member.expiryDate,
+            punchType: punchType,
+            punchTime: punchTime,
+            date: todayDateStr
+          })
+        });
+      } catch (err) {
+        console.warn('Network post error, using local broadcast fallback:', err);
+      }
+
+      // 2. BroadcastChannel for Instant Cross-Tab sync
+      try {
+        const channel = new BroadcastChannel('og_fitness_sync');
+        channel.postMessage({
+          type: 'MEMBER_PUNCH',
+          data: {
+            memberId: member.id,
+            memberName: member.name,
+            phone: member.phone,
+            planName: member.planName,
+            expiryDate: member.expiryDate,
+            punchType: punchType,
+            punchTime: punchTime
+          }
+        });
+      } catch(e){}
+
+      // Play audio chime on member's phone
+      playChime();
+
+      // Show Success State
+      document.getElementById('punch-input-card').style.display = 'none';
+      const successCard = document.getElementById('punch-success-card');
+      successCard.style.display = 'block';
+
+      document.getElementById('success-type').textContent = punchType === 'Check-In' ? 'PUNCH IN CONFIRMED' : 'PUNCH OUT CONFIRMED';
+      document.getElementById('success-name').textContent = member.name;
+      document.getElementById('success-id').textContent = member.id + (member.phone ? ' • +91 ' + member.phone : '');
+      document.getElementById('success-time').textContent = punchTime;
+      document.getElementById('success-plan').textContent = member.planName || 'Standard Membership';
+
+      // Check if expiring in 2 days (today is 2026-11-22)
+      const expiryAlert = document.getElementById('success-expiry-alert');
+      if (member.expiryDate === '2026-11-24') {
+        expiryAlert.style.display = 'flex';
+      } else {
+        expiryAlert.style.display = 'none';
+      }
+    });
+
+    // PWA Service Worker Registration & Install Prompt
+    let deferredPrompt = null;
+    const pwaBanner = document.getElementById('pwa-install-banner');
+    const pwaBtn = document.getElementById('pwa-install-btn');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (pwaBanner) pwaBanner.style.display = 'flex';
+    });
+
+    if (pwaBtn) {
+      pwaBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') {
+            if (pwaBanner) pwaBanner.style.display = 'none';
+          }
+          deferredPrompt = null;
+        }
+      });
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

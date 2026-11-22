@@ -1,0 +1,195 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Teko:wght@500;600;700&display=swap');
+
+:root {
+  --primary-neon: #ccff00;
+  --primary-neon-hover: #b8e600;
+  --primary-glow: rgba(204, 255, 0, 0.35);
+  --accent-orange: #ff4d29;
+  --bg-dark: #090c10;
+  --bg-card: #121820;
+  --bg-card-hover: #17202c;
+  --border-dark: rgba(255, 255, 255, 0.08);
+  --border-neon: rgba(204, 255, 0, 0.3);
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: var(--bg-dark);
+  color: #f1f5f9;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.font-heading {
+  font-family: 'Teko', sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #090c10;
+}
+::-webkit-scrollbar-thumb {
+  background: #232d3b;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-neon);
+}
+
+/* Glassmorphism Classes */
+.glass-header {
+  background: rgba(9, 12, 16, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-dark);
+}
+
+.glass-nav-mobile {
+  background: rgba(14, 19, 26, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.6);
+}
+
+.glass-card {
+  background: linear-gradient(145deg, rgba(22, 30, 41, 0.7) 0%, rgba(14, 19, 26, 0.85) 100%);
+  border: 1px solid var(--border-dark);
+  backdrop-filter: blur(12px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  border-color: var(--border-neon);
+  box-shadow: 0 10px 30px -10px rgba(204, 255, 0, 0.15);
+  transform: translateY(-4px);
+}
+
+/* Glowing Neon Elements */
+.neon-glow {
+  box-shadow: 0 0 25px var(--primary-glow);
+}
+
+.neon-border {
+  border-color: var(--primary-neon);
+  box-shadow: inset 0 0 10px rgba(204, 255, 0, 0.15), 0 0 15px rgba(204, 255, 0, 0.2);
+}
+
+.text-neon {
+  color: var(--primary-neon);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #ffffff 30%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-neon {
+  background: linear-gradient(135deg, #ffffff 20%, var(--primary-neon) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.bg-neon {
+  background-color: var(--primary-neon);
+  color: #090c10;
+}
+
+.bg-neon:hover {
+  background-color: var(--primary-neon-hover);
+}
+
+/* Custom Range Slider for BMI */
+input[type="range"] {
+  -webkit-appearance: none;
+  height: 6px;
+  background: #232d3b;
+  border-radius: 3px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary-neon);
+  cursor: pointer;
+  box-shadow: 0 0 10px var(--primary-glow);
+  transition: transform 0.15s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+/* Mobile Friendly safe area */
+.safe-bottom-padding {
+  padding-bottom: 5.5rem;
+}
+
+@media (min-width: 768px) {
+  .safe-bottom-padding {
+    padding-bottom: 0;
+  }
+}
+
+/* Hero Background Graphic Pattern */
+.hero-grid-pattern {
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+.radial-glow {
+  background: radial-gradient(circle at 50% 30%, rgba(204, 255, 0, 0.12) 0%, rgba(9, 12, 16, 0) 70%);
+}
+
+.radial-glow-orange {
+  background: radial-gradient(circle at 80% 80%, rgba(255, 77, 41, 0.09) 0%, rgba(9, 12, 16, 0) 60%);
+}
+
+/* Custom modal transitions */
+.modal-backdrop {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.modal-backdrop.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-content {
+  transform: scale(0.95) translateY(20px);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-backdrop.active .modal-content {
+  transform: scale(1) translateY(0);
+}
+
+/* Badge pulse */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--primary-neon);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--primary-neon);
+  display: inline-block;
+  animation: blink 1.8s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}

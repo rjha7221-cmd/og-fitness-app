@@ -1,0 +1,232 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  /* SolarZent Exact Light Theme Palette */
+  --solar-orange: #FD630A;
+  --solar-orange-light: #FD853F;
+  --solar-orange-dark: #D44F02;
+  --solar-gradient: linear-gradient(115deg, #FD853F 0%, #FD630A 55%, #D44F02 100%);
+  --solar-gradient-hover: linear-gradient(115deg, #fe9352 0%, #ff7324 55%, #e65604 100%);
+  --solar-glow: rgba(253, 99, 10, 0.25);
+
+  --bg-page: #F8FAFC;
+  --bg-sidebar: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --text-main: #0F172A;
+  --text-muted: #64748B;
+  --border-light: #E2E8F0;
+  --border-subtle: #F1F5F9;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* SolarZent Buttons */
+.btn-solar {
+  background: var(--solar-gradient) !important;
+  color: #FFFFFF !important;
+  transition: all 0.2s ease;
+}
+
+.btn-solar:hover {
+  background: var(--solar-gradient-hover) !important;
+  box-shadow: 0 4px 14px var(--solar-glow);
+}
+
+.text-solar {
+  color: var(--solar-orange) !important;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--solar-orange);
+}
+
+/* White Clean Cards */
+.solar-card {
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-light);
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.solar-card:hover {
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.06);
+}
+
+/* Sidebar Active Nav Item (SolarZent exact style) */
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: #475569;
+  transition: all 0.15s ease;
+}
+
+.sidebar-link:hover {
+  background-color: #F8FAFC;
+  color: #0F172A;
+}
+
+.sidebar-link.active {
+  background-color: #FFF7ED !important;
+  color: #EA580C !important;
+  font-weight: 600 !important;
+}
+
+/* Badges */
+.badge-active {
+  background-color: #ECFDF5;
+  color: #059669;
+  border: 1px solid #A7F3D0;
+}
+
+.badge-expiring {
+  background-color: #FFFBEB;
+  color: #D97706;
+  border: 1px solid #FDE68A;
+  animation: pulse-badge 2s infinite ease-in-out;
+}
+
+.badge-expired {
+  background-color: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FECACA;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+/* Modals */
+.portal-modal {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.portal-modal.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.portal-modal.active > div {
+  transform: scale(1) translateY(0);
+}
+
+.portal-modal > div {
+  transform: scale(0.96) translateY(12px);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Printable ID Card & Table Standee */
+@media print {
+  body:not(.print-standee) * {
+    visibility: hidden;
+  }
+  body:not(.print-standee) #printable-id-card, 
+  body:not(.print-standee) #printable-id-card * {
+    visibility: visible;
+  }
+  body:not(.print-standee) #printable-id-card {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 85.6mm;
+    height: 53.98mm;
+    margin: 0;
+    padding: 0;
+  }
+
+  body.print-standee * {
+    visibility: hidden;
+  }
+  body.print-standee #printable-table-standee,
+  body.print-standee #printable-table-standee * {
+    visibility: visible;
+  }
+  body.print-standee #printable-table-standee {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 170mm;
+    margin: 0;
+    padding: 15mm;
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    border: 3px solid #FD630A !important;
+    border-radius: 18px !important;
+    box-shadow: none !important;
+  }
+
+  /* Printable Daily Report Styling */
+  body.print-report * {
+    visibility: hidden;
+  }
+  body.print-report #printable-daily-report,
+  body.print-report #printable-daily-report * {
+    visibility: visible;
+  }
+  body.print-report #printable-daily-report {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 12mm;
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+  }
+}
+
+/* Scanner Laser & Reticle */
+.scanner-laser {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #FD630A;
+  box-shadow: 0 0 12px #FD630A;
+  animation: scan-laser 2s infinite ease-in-out;
+  pointer-events: none;
+}
+@keyframes scan-laser {
+  0%, 100% { top: 10%; opacity: 0.3; }
+  50% { top: 90%; opacity: 1; }
+}
+.scanner-reticle {
+  position: absolute;
+  inset: 15%;
+  border: 2px dashed rgba(253, 99, 10, 0.6);
+  border-radius: 1rem;
+  pointer-events: none;
+}

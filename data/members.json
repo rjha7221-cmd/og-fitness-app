@@ -1,0 +1,17 @@
+[
+  {
+    "id": "OG-1001",
+    "name": "rishi",
+    "phone": "7440858141",
+    "gender": "Male",
+    "age": 21,
+    "planId": "p2",
+    "planName": "3 Months Strength",
+    "joinDate": "2026-11-22",
+    "expiryDate": "2027-02-20",
+    "feesTotal": 1500,
+    "feesPaid": 1500,
+    "status": "Active",
+    "notes": ""
+  }
+]

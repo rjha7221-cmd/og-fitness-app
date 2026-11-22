@@ -1,0 +1,38 @@
+{
+  "ownerName": "Rishi Jha",
+  "gymName": "OG Fitness Elite",
+  "phone": "9876543210",
+  "email": "owner@ogfitness.com",
+  "address": "City Center, Main Road",
+  "profileImage": "",
+  "morningTiming": "06:00 AM - 11:30 AM",
+  "eveningTiming": "04:30 PM - 10:00 PM",
+  "upiId": "ogfitness@upi",
+  "standeeUrl": "https://bc6aa719329abb0d-152-59-28-175.serveousercontent.com/punch.html",
+  "plans": [
+    {
+      "id": "p1",
+      "name": "1 Month Essential",
+      "price": 1499,
+      "durationDays": 30
+    },
+    {
+      "id": "p2",
+      "name": "3 Months Strength",
+      "price": 3999,
+      "durationDays": 90
+    },
+    {
+      "id": "p3",
+      "name": "6 Months Pro Athlete",
+      "price": 6999,
+      "durationDays": 180
+    },
+    {
+      "id": "p4",
+      "name": "12 Months Elite VIP",
+      "price": 11999,
+      "durationDays": 365
+    }
+  ]
+}

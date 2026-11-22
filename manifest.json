@@ -1,0 +1,35 @@
+﻿{
+  "name": "OG Fitness - Gym Portal & Attendance",
+  "short_name": "OG Fitness",
+  "description": "OG Fitness Gym Management, Member Directory, and QR Attendance Punch",
+  "start_url": "/punch.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#ea580c",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512 any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Punch Attendance",
+      "short_name": "Punch",
+      "description": "Punch gym attendance instantly",
+      "url": "/punch.html",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Owner Dashboard",
+      "short_name": "Dashboard",
+      "description": "Open gym owner management dashboard",
+      "url": "/index.html",
+      "icons": [{ "src": "/icon.svg", "sizes": "192x192" }]
+    }
+  ]
+}

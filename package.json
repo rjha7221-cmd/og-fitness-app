@@ -1,0 +1,16 @@
+{
+  "name": "og-fitness",
+  "version": "1.0.0",
+  "description": "OG Fitness - Premier Gym & Athletic Training Center Website",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "share": "ssh -o StrictHostKeyChecking=no -R 80:127.0.0.1:3000 serveo.net"
+  },
+  "keywords": ["gym", "fitness", "responsive", "website"],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "OG Fitness",
+  "license": "MIT"
+}

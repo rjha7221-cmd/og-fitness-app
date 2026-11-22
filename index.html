@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>OG Fitness | Gym Owner CRM & Operations</title>
+  <meta name="description" content="OG Fitness - Smart Gym Owner Management CRM.">
+
+  <!-- PWA Manifest & App Config -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <meta name="theme-color" content="#ea580c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OG Fitness">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            solar: {
+              DEFAULT: '#FD630A',
+              light: '#FD853F',
+              dark: '#D44F02',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- HTML5 QR Code Scanner Library (CDN) -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+  <!-- Custom Styles (SolarZent White/Light Theme) -->
+  <link rel="stylesheet" href="css/portal.css">
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex selection:bg-orange-500 selection:text-white">
+
+  <!-- Left Sidebar (SolarZent Exact Layout) -->
+  <aside id="app-sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 transform -translate-x-full lg:translate-x-0 transition-transform duration-200 ease-in-out flex flex-col justify-between p-5">
+    
+    <!-- Top Brand & Nav -->
+    <div class="space-y-6">
+      <!-- Brand Logo -->
+      <div class="flex items-start justify-between">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 text-white flex items-center justify-center font-black text-sm shadow-sm shadow-orange-500/30">
+              <i class="fa-solid fa-dumbbell"></i>
+            </div>
+            <h1 class="text-xl font-bold text-slate-900 tracking-tight leading-none">OG Fitness</h1>
+          </div>
+          <p class="text-[11px] text-slate-400 font-medium mt-1 ml-0.5">Gym Owner CRM &bull; Pro</p>
+        </div>
+        <button onclick="toggleMobileSidebar()" class="lg:hidden text-slate-400 hover:text-slate-700 p-1">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Role Badge -->
+      <div>
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-600 border border-sky-100">
+          Gym Owner
+        </span>
+      </div>
+
+      <!-- Nav Items -->
+      <nav class="space-y-1.5 pt-1">
+        <button onclick="switchTab('dashboard')" class="sidebar-link w-full active" data-tab-btn="dashboard">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-table-cells-large text-base w-4 text-center"></i>
+            <span>Dashboard</span>
+          </div>
+          <i class="fa-solid fa-chevron-right text-[10px] opacity-70"></i>
+        </button>
+
+        <button onclick="switchTab('members-sheet')" class="sidebar-link w-full" data-tab-btn="members-sheet">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-users text-base w-4 text-center"></i>
+            <span>Members Directory</span>
+          </div>
+        </button>
+
+        <button onclick="switchTab('new-member')" class="sidebar-link w-full" data-tab-btn="new-member">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-user-plus text-base w-4 text-center"></i>
+            <span>New Admission</span>
+          </div>
+        </button>
+
+        <button onclick="switchTab('floor-roster')" class="sidebar-link w-full" data-tab-btn="floor-roster">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-fingerprint text-base w-4 text-center"></i>
+            <span>Attendance & Floor</span>
+          </div>
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        </button>
+
+        <button onclick="switchTab('expiry')" class="sidebar-link w-full" data-tab-btn="expiry">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-bell text-base w-4 text-center"></i>
+            <span>2-Day Expiry Alerts</span>
+          </div>
+          <span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-orange-100 text-orange-600">New</span>
+        </button>
+
+        <button onclick="switchTab('daily-report')" class="sidebar-link w-full" data-tab-btn="daily-report">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-chart-line text-base w-4 text-center"></i>
+            <span>Daily Reports</span>
+          </div>
+        </button>
+
+        <button onclick="switchTab('settings')" class="sidebar-link w-full" data-tab-btn="settings">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-gear text-base w-4 text-center"></i>
+            <span>Settings & Profile</span>
+          </div>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Bottom User Section -->
+    <div class="pt-4 border-t border-slate-100 space-y-3">
+      <div onclick="switchTab('settings')" class="flex items-center justify-between pt-1 p-2 rounded-xl hover:bg-slate-50 cursor-pointer transition" title="Open Settings">
+        <div class="flex items-center gap-2.5">
+          <div id="sidebar-user-avatar-wrap" class="w-9 h-9 rounded-full bg-orange-100 text-orange-600 font-bold flex items-center justify-center text-xs overflow-hidden border border-orange-200">
+            <span id="sidebar-user-initials">RJ</span>
+            <img id="sidebar-user-avatar-img" src="" alt="Owner" class="w-full h-full object-cover hidden">
+          </div>
+          <div>
+            <div id="sidebar-owner-name" class="text-xs font-bold text-slate-900 leading-tight">Rishi Jha</div>
+            <div id="sidebar-gym-brand" class="text-[10px] text-slate-400 font-medium">OG Fitness Owner</div>
+          </div>
+        </div>
+        <button onclick="switchTab('settings'); event.stopPropagation();" title="Settings" class="text-slate-400 hover:text-orange-600 transition">
+          <i class="fa-solid fa-gear text-xs"></i>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Mobile Sidebar Backdrop -->
+  <div id="sidebar-backdrop" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden hidden"></div>
+
+  <!-- Main Content Wrapper (With Left Margin for Sidebar) -->
+  <div class="flex-1 lg:pl-64 flex flex-col min-w-0">
+    
+    <!-- Top Header Bar -->
+    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+      <!-- Mobile hamburger -->
+      <!-- Live date and server indicator -->
+      <div class="flex items-center gap-3">
+        <button onclick="toggleMobileSidebar()" class="lg:hidden text-slate-600 hover:text-slate-900 p-1.5 rounded-lg border border-slate-200">
+          <i class="fa-solid fa-bars-staggered text-base"></i>
+        </button>
+        <span class="hidden sm:inline-block text-xs font-medium text-slate-500 font-mono">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block mr-1"></span>
+          <span id="live-header-date">Live Gym Server</span>
+        </span>
+      </div>
+
+      <!-- Action Buttons Right (Desk Standee QR, Camera Scan, Add Member) -->
+      <div class="flex items-center space-x-2 sm:space-x-2.5">
+        <!-- Desk Standee QR Modal Button -->
+        <button onclick="openStandeeModal()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-2 transition border border-slate-200 shadow-sm" title="Print Reception Table Standee QR">
+          <i class="fa-solid fa-qrcode text-orange-600"></i>
+          <span class="hidden sm:inline">Desk Standee QR</span>
+        </button>
+
+        <!-- Camera Scanner Modal Button -->
+        <button onclick="openCameraScannerModal()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-2 transition border border-slate-200 shadow-sm" title="Open Camera Scanner">
+          <i class="fa-solid fa-camera text-sky-600"></i>
+          <span class="hidden sm:inline">Scan QR</span>
+        </button>
+
+        <!-- Add Member Button -->
+        <button onclick="switchTab('new-member')" class="btn-solar px-4 py-2 rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5">
+          <i class="fa-solid fa-plus text-xs"></i>
+          <span>Add Member</span>
+        </button>
+
+        <!-- User Role Pill Top Right (SolarZent exact) -->
+        <div onclick="switchTab('settings')" class="hidden md:flex items-center gap-2 pl-2 border-l border-slate-200 cursor-pointer hover:opacity-80 transition" title="Profile Settings">
+          <span class="px-2.5 py-1 rounded-full text-xs font-medium bg-sky-50 text-sky-600 border border-sky-100">
+            Gym Owner
+          </span>
+          <div id="header-user-avatar-wrap" class="w-8 h-8 rounded-full bg-orange-100 text-orange-600 font-bold flex items-center justify-center text-xs overflow-hidden border border-orange-200">
+            <span id="header-user-initials">RJ</span>
+            <img id="header-user-avatar-img" src="" alt="Owner" class="w-full h-full object-cover hidden">
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Body Area -->
+    <main class="flex-1 p-4 sm:p-8 space-y-7 max-w-7xl">
+
+      <!-- ========================================== -->
+      <!-- SECTION 1: DASHBOARD & LIVE FLOOR          -->
+      <!-- ========================================== -->
+      <div id="view-dashboard" class="portal-tab-content space-y-6">
+
+        <!-- Welcome Header (SolarZent Exact Title Style) -->
+        <div class="space-y-1">
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Welcome, Rishi
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-500" id="live-welcome-date">
+            Gym Owner Dashboard &bull; Live Operations
+          </p>
+          <p class="text-[11px] text-slate-400">
+            Showing your live gym members, active attendance, floor roster and renewals.
+          </p>
+        </div>
+
+        <!-- 4 Top KPI Metric Cards (SolarZent Exact Clean White Cards) -->
+        <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          
+          <!-- Card 1: Total Members -->
+          <div class="solar-card p-5 flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <div class="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-sm font-bold">
+                <i class="fa-solid fa-users"></i>
+              </div>
+              <span id="metric-new-badge" class="text-[11px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">Live</span>
+            </div>
+            <div class="mt-4">
+              <span id="metric-total-members" class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-none">0</span>
+              <span id="metric-members-label" class="text-xs text-slate-500 font-medium block mt-1">Total members</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Punches -->
+          <div class="solar-card p-5 flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-sm font-bold">
+                <i class="fa-solid fa-fingerprint"></i>
+              </div>
+              <span class="text-[11px] text-slate-400 font-medium">Activity</span>
+            </div>
+            <div class="mt-4">
+              <span id="metric-today-attendance" class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-none">0</span>
+              <span id="metric-attendance-label" class="text-xs text-slate-500 font-medium block mt-1">Punches (This Month)</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Currently On Floor -->
+          <div class="solar-card p-5 flex flex-col justify-between border-emerald-200/80 bg-emerald-50/20">
+            <div class="flex items-center justify-between">
+              <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm font-bold">
+                <i class="fa-solid fa-person-running"></i>
+              </div>
+              <span class="flex items-center gap-1 text-[11px] text-emerald-600 font-bold">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Live Floor
+              </span>
+            </div>
+            <div class="mt-4">
+              <span id="metric-on-floor" class="text-3xl sm:text-4xl font-extrabold text-emerald-700 tracking-tight leading-none">0</span>
+              <span class="text-xs text-slate-600 font-medium block mt-1">Currently in gym</span>
+            </div>
+          </div>
+
+          <!-- Card 4: Revenue Value -->
+          <div class="solar-card p-5 flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <div class="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center text-sm font-bold">
+                <i class="fa-solid fa-bolt"></i>
+              </div>
+              <span class="text-[11px] text-slate-400 font-mono">Paid</span>
+            </div>
+            <div class="mt-4">
+              <span id="metric-total-revenue" class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-none font-mono">₹0</span>
+              <span id="metric-revenue-label" class="text-xs text-slate-500 font-medium block mt-1">Revenue collected</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Time Range Selector Bar (SolarZent Exact Style) -->
+        <div class="solar-card px-4 py-3 flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar text-xs font-semibold">
+          <span class="text-slate-400 flex items-center gap-1.5 pl-1 flex-shrink-0">
+            <i class="fa-regular fa-calendar text-orange-600"></i>
+            <span>Period:</span>
+          </span>
+          <button id="period-btn-today" onclick="setDashboardPeriod('today')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition flex-shrink-0">Today</button>
+          <button id="period-btn-this_week" onclick="setDashboardPeriod('this_week')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition flex-shrink-0">This Week</button>
+          <button id="period-btn-this_month" onclick="setDashboardPeriod('this_month')" class="px-3 py-1.5 rounded-lg bg-orange-600 text-white font-bold shadow-sm shadow-orange-500/30 transition flex-shrink-0">This Month</button>
+          <button id="period-btn-last_month" onclick="setDashboardPeriod('last_month')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition flex-shrink-0">Last Month</button>
+          <button id="period-btn-this_year" onclick="setDashboardPeriod('this_year')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition flex-shrink-0">This Year</button>
+          <button id="period-btn-all" onclick="setDashboardPeriod('all')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition flex-shrink-0">All Time</button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          <!-- Live Floor Attendance Card -->
+          <div class="lg:col-span-8 solar-card p-6 space-y-5">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <i class="fa-solid fa-dumbbell text-orange-600"></i>
+                  <span>Live Gym Floor &bull; Currently Working Out</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Real-time attendance. Members checked in right now.</p>
+              </div>
+              <button onclick="renderOnFloorTable()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-rotate-right text-xs"></i>
+                <span>Refresh</span>
+              </button>
+            </div>
+
+            <!-- List of members in gym -->
+            <div id="on-floor-container" class="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
+              <!-- Dynamically populated by JS -->
+            </div>
+          </div>
+
+          <!-- Quick Punch & Desk Standee Helper Card -->
+          <div class="lg:col-span-4 space-y-5">
+            
+            <!-- Quick Manual Punch Box -->
+            <div class="solar-card p-5 space-y-4">
+              <div class="pb-2 border-b border-slate-100">
+                <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+                  <i class="fa-solid fa-keyboard text-orange-600"></i>
+                  <span>Fast Manual Check-in</span>
+                </h4>
+                <p class="text-[11px] text-slate-400 mt-0.5">Member ID or Mobile Number</p>
+              </div>
+
+              <div class="space-y-2">
+                <input type="text" id="quick-punch-input" placeholder="e.g. OG-1001 or 9811223344..." class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-900 focus:outline-none transition">
+                <button id="quick-punch-submit" class="w-full btn-solar py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-2">
+                  <i class="fa-solid fa-bolt"></i>
+                  <span>Punch Attendance</span>
+                </button>
+              </div>
+
+              <div class="pt-2 text-[11px] text-slate-400 flex items-center gap-2">
+                <span>Demo IDs:</span>
+                <button onclick="document.getElementById('quick-punch-input').value='OG-1001'; document.getElementById('quick-punch-submit').click();" class="text-orange-600 underline font-mono">OG-1001</button>
+                <span>&bull;</span>
+                <button onclick="document.getElementById('quick-punch-input').value='OG-1002'; document.getElementById('quick-punch-submit').click();" class="text-orange-600 underline font-mono">OG-1002</button>
+              </div>
+            </div>
+
+            <!-- Table Standee Mini Card -->
+            <div class="solar-card p-5 space-y-3 bg-gradient-to-br from-orange-50/50 via-white to-amber-50/30 border-orange-200">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center text-base font-bold">
+                  <i class="fa-solid fa-qrcode"></i>
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-slate-900">Reception Table Standee</h4>
+                  <p class="text-[11px] text-slate-500">Self-punch QR for counter</p>
+                </div>
+              </div>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Table par standee chipkayein. Member phone se scan karega to turant yahan live show hoga.
+              </p>
+              <div class="pt-1 flex gap-2">
+                <button onclick="openStandeeModal()" class="flex-1 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs transition shadow-sm flex items-center justify-center gap-1.5">
+                  <i class="fa-solid fa-print"></i>
+                  <span>Print Standee</span>
+                </button>
+                <a href="punch.html" target="_blank" class="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs border border-slate-200 flex items-center justify-center" title="Open member self-punch">
+                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </a>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION 2: ATTENDANCE & FLOOR ROSTER         -->
+      <!-- ========================================== -->
+      <div id="view-floor-roster" class="portal-tab-content space-y-6 hidden">
+        <div class="solar-card p-6 space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold uppercase tracking-wider mb-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                Live Floor Watch
+              </div>
+              <h3 class="text-xl font-bold text-slate-900">Attendance & Gym Floor Roster</h3>
+              <p class="text-xs text-slate-500">Live members currently on gym floor & today's punch in/out records.</p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button onclick="openStandeeModal()" class="px-3.5 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-xs flex items-center gap-1.5 border border-orange-200 transition shadow-sm">
+                <i class="fa-solid fa-qrcode"></i>
+                <span>Desk Standee QR</span>
+              </button>
+              <button onclick="renderAllViews()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs flex items-center gap-1.5 border border-slate-200 transition">
+                <i class="fa-solid fa-rotate-right"></i>
+                <span>Refresh</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Currently on Floor Section -->
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
+              <span class="flex items-center gap-2">
+                <i class="fa-solid fa-dumbbell text-orange-600"></i>
+                <span>Currently Working Out On Floor</span>
+              </span>
+            </h4>
+            <div id="on-floor-container-dedicated" class="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+              <!-- Dynamically populated by JS -->
+            </div>
+          </div>
+
+          <!-- Today's Complete Attendance Log -->
+          <div class="pt-4 border-t border-slate-100 space-y-3">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-orange-600"></i>
+                <span>Today's Complete Punch History</span>
+              </h4>
+              <button onclick="exportAttendanceToCSV()" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1">
+                <i class="fa-solid fa-file-arrow-down"></i>
+                <span>Export Attendance (.csv)</span>
+              </button>
+            </div>
+            <div id="daily-attendance-log-dedicated" class="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+              <!-- Dynamically populated by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION 3: MEMBER DIRECTORY & EXCEL SHEET  -->
+      <!-- ========================================== -->
+      <div id="view-members-sheet" class="portal-tab-content space-y-6 hidden">
+        <div class="solar-card p-6 space-y-5">
+          
+          <!-- Top Bar -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-file-excel text-emerald-600"></i>
+                <span>Member Master Directory</span>
+                <span id="directory-count-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700 font-mono">0 Members</span>
+              </h3>
+              <p class="text-xs text-slate-500">Complete members list with join dates, plans, validity and fee statuses.</p>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-2.5 flex-wrap">
+              <button onclick="exportMembersToCSV()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-2 transition shadow-sm">
+                <i class="fa-solid fa-file-arrow-down"></i>
+                <span>Export to Excel (.csv)</span>
+              </button>
+              <button onclick="switchTab('new-member')" class="btn-solar px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-plus"></i>
+                <span>Add Member</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Search, Status & Date Filters -->
+          <div class="space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+              <!-- Search Bar -->
+              <div class="sm:col-span-5">
+                <div class="relative">
+                  <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+                  <input type="text" id="member-search-input" placeholder="Search by Name, Phone or ID..." class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none transition">
+                </div>
+              </div>
+
+              <!-- Status Filter -->
+              <div class="sm:col-span-3">
+                <select id="member-status-filter" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 rounded-xl px-3 py-2.5 text-xs text-slate-700 focus:outline-none transition">
+                  <option value="all">All Status (Active + Expiring + Expired)</option>
+                  <option value="expiring">Expiring in 2 Days (Urgent)</option>
+                  <option value="active">Active Members Only</option>
+                  <option value="expired">Expired Members Only</option>
+                </select>
+              </div>
+
+              <!-- Join Date Filter -->
+              <div class="sm:col-span-4 flex items-center gap-2">
+                <div class="relative flex-1">
+                  <i class="fa-regular fa-calendar absolute left-3 top-3 text-orange-600 text-xs"></i>
+                  <select id="member-date-filter" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 rounded-xl pl-8 pr-3 py-2.5 text-xs text-slate-700 font-semibold focus:outline-none transition">
+                    <option value="all">📅 All Join Dates (All Time)</option>
+                    <option value="today">📅 Joined Today (Aaj)</option>
+                    <option value="this_week">📅 Joined This Week (Iss Hafte)</option>
+                    <option value="this_month">📅 Joined This Month (Iss Mahine)</option>
+                    <option value="last_month">📅 Joined Last Month (Pichle Mahine)</option>
+                    <option value="this_year">📅 Joined This Year (Iss Saal)</option>
+                    <option value="custom">📅 Custom Date...</option>
+                  </select>
+                </div>
+                <input type="date" id="member-custom-date" class="hidden bg-white border border-slate-300 focus:border-orange-500 rounded-xl px-2.5 py-2 text-xs text-slate-800 font-mono font-semibold focus:outline-none transition">
+              </div>
+            </div>
+
+            <!-- Quick Date Filter Pills for Member Directory -->
+            <div class="flex items-center gap-1.5 flex-wrap text-xs pt-1 border-t border-slate-100">
+              <span class="text-[11px] font-bold text-slate-400 mr-1 flex items-center gap-1">
+                <i class="fa-solid fa-filter text-orange-600"></i> Quick Date:
+              </span>
+              <button onclick="setMemberDirectoryDateQuick('all')" id="dir-pill-all" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-orange-50 text-orange-600 border border-orange-200 transition">All</button>
+              <button onclick="setMemberDirectoryDateQuick('today')" id="dir-pill-today" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">Today</button>
+              <button onclick="setMemberDirectoryDateQuick('this_week')" id="dir-pill-this_week" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">This Week</button>
+              <button onclick="setMemberDirectoryDateQuick('this_month')" id="dir-pill-this_month" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">This Month</button>
+              <button onclick="setMemberDirectoryDateQuick('last_month')" id="dir-pill-last_month" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">Last Month</button>
+              <button onclick="setMemberDirectoryDateQuick('this_year')" id="dir-pill-this_year" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">This Year</button>
+            </div>
+          </div>
+
+          <!-- Table -->
+          <div class="overflow-x-auto rounded-xl border border-slate-200">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                  <th class="py-3 px-4">Member ID</th>
+                  <th class="py-3 px-4">Name & Contact</th>
+                  <th class="py-3 px-4">Plan & Validity</th>
+                  <th class="py-3 px-4">Status</th>
+                  <th class="py-3 px-4">Fees Details</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="members-table-body" class="divide-y divide-slate-100">
+                <!-- Dynamically populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION 3: NEW MEMBER ADMISSION FORM       -->
+      <!-- ========================================== -->
+      <div id="view-new-member" class="portal-tab-content space-y-6 hidden">
+        <div class="max-w-3xl mx-auto solar-card p-6 sm:p-8 space-y-6">
+          <div class="pb-4 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-orange-600">Admission Desk</span>
+              <h3 class="text-xl font-bold text-slate-900 mt-0.5">New Member Registration</h3>
+              <p class="text-xs text-slate-500">Fill details; ID and expiry date will be auto-generated.</p>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center text-lg">
+              <i class="fa-solid fa-user-plus"></i>
+            </div>
+          </div>
+
+          <form id="new-member-form" class="space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Full Name *</label>
+                <input type="text" id="form-name" required placeholder="e.g. Ankit Sharma" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none transition">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">WhatsApp / Mobile Number *</label>
+                <input type="tel" id="form-phone" required placeholder="10-digit number" maxlength="10" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none transition">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Gender</label>
+                <select id="form-gender" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-slate-700 focus:outline-none transition">
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Age</label>
+                <input type="number" id="form-age" placeholder="e.g. 25" min="12" max="90" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none transition">
+              </div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-4">
+              <h4 class="text-xs font-bold text-orange-600 uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-tags"></i>
+                <span>Membership Plan & Duration</span>
+              </h4>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Select Plan *</label>
+                  <select id="form-plan-select" class="w-full bg-white border border-slate-200 focus:border-orange-500 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none transition">
+                    <option value="p1">1 Month Essential (₹1,499)</option>
+                    <option value="p2" selected>3 Months Strength (₹3,999)</option>
+                    <option value="p3">6 Months Pro Athlete (₹6,999)</option>
+                    <option value="p4">12 Months Elite VIP (₹11,999)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-slate-700 mb-1">Start Date</label>
+                  <input type="date" id="form-join-date" class="w-full bg-white border border-slate-200 focus:border-orange-500 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none transition">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-orange-600 mb-1">Auto Expiry Date</label>
+                  <input type="date" id="form-expiry-date" readonly class="w-full bg-orange-50/50 border border-orange-300 text-orange-700 font-bold rounded-xl px-3 py-2.5 text-xs focus:outline-none">
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Total Fee (₹)</label>
+                <input type="number" id="form-fees-total" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-900 focus:outline-none transition">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Paid Today (₹)</label>
+                <input type="number" id="form-fees-paid" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-900 focus:outline-none transition">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Payment Mode</label>
+                <select id="form-payment-mode" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 rounded-xl px-3 py-2.5 text-xs text-slate-900 focus:outline-none transition">
+                  <option value="UPI">UPI / GPay / PhonePe</option>
+                  <option value="Cash">Cash at Counter</option>
+                  <option value="Card">Debit / Credit Card</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="pt-2">
+              <button type="submit" class="w-full btn-solar py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-2">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span>Save Member & Generate Pass</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION 4: 2-DAY EXPIRE ALERTS & WHATSAPP  -->
+      <!-- ========================================== -->
+      <div id="view-expiry" class="portal-tab-content space-y-6 hidden">
+        <div class="solar-card p-6 space-y-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div>
+              <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold uppercase tracking-wider mb-1">
+                <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+                Automated Watchdog
+              </div>
+              <h3 class="text-lg font-bold text-slate-900">2-Day Pre-Expiry Reminder Desk</h3>
+              <p class="text-xs text-slate-500">Members expiring in 48 hours. One-click personalized WhatsApp reminder.</p>
+            </div>
+
+            <button onclick="renderExpiryAlerts()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-rotate-right"></i>
+              <span>Re-check Expiries</span>
+            </button>
+          </div>
+
+          <div class="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200 text-xs text-emerald-800 space-y-1">
+            <span class="font-bold flex items-center gap-1.5 text-emerald-900">
+              <i class="fa-brands fa-whatsapp text-sm"></i> WhatsApp Auto Reminder Template:
+            </span>
+            <p class="font-mono text-[11px] text-slate-600 bg-white p-2.5 rounded-lg border border-emerald-100 mt-1">
+              "Namaste [Member Name] Ji! 💪 OG Fitness se reminder: Aapki gym membership 2 din me ([Expiry Date]) ko expire ho rahi hai. Kripya reception par renew karwayein. - OG Fitness"
+            </p>
+          </div>
+
+          <!-- Dynamic Alerts List -->
+          <div id="expiry-alerts-list" class="space-y-3">
+            <!-- Dynamically populated by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION 5: DAILY REPORTS (MULTI-DATE & PDF) -->
+      <!-- ========================================== -->
+      <div id="view-daily-report" class="portal-tab-content space-y-6 hidden">
+        
+        <!-- Date Selection & Action Toolbar -->
+        <div class="solar-card p-5 space-y-4">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-orange-600 flex items-center gap-1.5">
+                <i class="fa-solid fa-calendar-day"></i>
+                Daily Operations & Business Audit
+              </span>
+              <h3 class="text-xl font-bold text-slate-900 mt-0.5">Daily Gym Operations Report</h3>
+              <p class="text-xs text-slate-500">Tareekh select karein; us din ke New Admissions, Attendance Punches, Expiries aur Revenue dekhein.</p>
+            </div>
+
+            <!-- Export Buttons -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <button onclick="downloadDailyReportPDF()" class="btn-solar px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-sm" title="Download or Print formatted A4 PDF">
+                <i class="fa-solid fa-file-pdf"></i>
+                <span>Download PDF / Print</span>
+              </button>
+              <button onclick="exportDailyReportCSV()" class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-200" title="Export as CSV sheet">
+                <i class="fa-solid fa-file-csv text-emerald-600"></i>
+                <span>Download CSV</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Date Switcher Buttons (Today, Yesterday, 2 Days Ago, 3 Days Ago, Custom Date) -->
+          <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-xs font-bold text-slate-700 mr-1 flex items-center gap-1">
+                <i class="fa-regular fa-calendar text-orange-600"></i> Quick Dates:
+              </span>
+              <button id="rep-btn-today" onclick="setReportDatePreset('today')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-orange-50 text-orange-600 border border-orange-200 transition">
+                Aaj (Today)
+              </button>
+              <button id="rep-btn-yesterday" onclick="setReportDatePreset('yesterday')" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">
+                Kal (Yesterday)
+              </button>
+              <button id="rep-btn-2days" onclick="setReportDatePreset('2days_ago')" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">
+                Parso (2 Days Ago)
+              </button>
+              <button id="rep-btn-3days" onclick="setReportDatePreset('3days_ago')" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition">
+                3 Days Ago
+              </button>
+            </div>
+
+            <!-- Custom Calendar Picker -->
+            <div class="flex items-center gap-2">
+              <label for="report-custom-date" class="text-xs font-semibold text-slate-600">Pick Any Date:</label>
+              <input type="date" id="report-custom-date" onchange="onReportCustomDateChange(this.value)" class="bg-white border border-slate-300 focus:border-orange-500 rounded-xl px-3 py-1.5 text-xs text-slate-800 font-mono font-semibold focus:outline-none transition">
+            </div>
+          </div>
+        </div>
+
+        <!-- Printable Daily Report Canvas (Targeted by window.print / PDF) -->
+        <div id="printable-daily-report" class="solar-card p-6 sm:p-8 space-y-6">
+          
+          <!-- Report Header Banner -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white flex items-center justify-center font-bold text-xl shadow-md">
+                <i class="fa-solid fa-dumbbell"></i>
+              </div>
+              <div>
+                <h2 id="report-gym-name" class="text-2xl font-black text-slate-900 tracking-tight leading-none">OG FITNESS</h2>
+                <div class="text-xs text-slate-500 mt-1">Daily Operations & Activity Audit Report</div>
+              </div>
+            </div>
+
+            <div class="text-left sm:text-right">
+              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-800 font-mono text-xs font-bold border border-slate-200">
+                <i class="fa-regular fa-clock text-orange-600"></i>
+                <span id="rep-selected-date-display">2026-11-22</span>
+              </div>
+              <div id="rep-selected-weekday" class="text-xs text-slate-400 mt-1 font-medium">Sunday</div>
+            </div>
+          </div>
+
+          <!-- 4 Day KPI Metric Cards for Selected Date -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Footfall / Punches -->
+            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+              <div class="flex items-center justify-between text-xs text-slate-500 font-medium mb-1">
+                <span>Total Punches</span>
+                <i class="fa-solid fa-fingerprint text-orange-600"></i>
+              </div>
+              <div id="rep-kpi-punches" class="text-2xl sm:text-3xl font-black text-slate-900">0</div>
+              <div class="text-[11px] text-slate-400 mt-1">Gym Footfall on this date</div>
+            </div>
+
+            <!-- New Admissions -->
+            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+              <div class="flex items-center justify-between text-xs text-slate-500 font-medium mb-1">
+                <span>New Admissions</span>
+                <i class="fa-solid fa-user-plus text-sky-600"></i>
+              </div>
+              <div id="rep-kpi-admissions" class="text-2xl sm:text-3xl font-black text-slate-900">0</div>
+              <div class="text-[11px] text-slate-400 mt-1">New members enrolled</div>
+            </div>
+
+            <!-- Revenue Collected -->
+            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+              <div class="flex items-center justify-between text-xs text-slate-500 font-medium mb-1">
+                <span>Day Collection</span>
+                <i class="fa-solid fa-indian-rupee-sign text-emerald-600"></i>
+              </div>
+              <div id="rep-kpi-revenue" class="text-2xl sm:text-3xl font-black text-slate-900">₹0</div>
+              <div class="text-[11px] text-slate-400 mt-1">Fees collected on this date</div>
+            </div>
+
+            <!-- Expiries -->
+            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+              <div class="flex items-center justify-between text-xs text-slate-500 font-medium mb-1">
+                <span>Expired Members</span>
+                <i class="fa-solid fa-bell text-rose-600"></i>
+              </div>
+              <div id="rep-kpi-expiries" class="text-2xl sm:text-3xl font-black text-slate-900">0</div>
+              <div class="text-[11px] text-slate-400 mt-1">Members expired on this date</div>
+            </div>
+          </div>
+
+          <!-- Section A: New Admissions on Selected Date -->
+          <div class="space-y-3 pt-2">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-user-plus text-orange-600"></i>
+                <span>1. New Admissions on This Date</span>
+              </h4>
+              <span id="rep-admissions-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700">0 Joined</span>
+            </div>
+            <div id="rep-admissions-container">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Section B: Complete Attendance & Punches on Selected Date -->
+          <div class="space-y-3 pt-2">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-orange-600"></i>
+                <span>2. Member Check-In & Check-Out Punch Log</span>
+              </h4>
+              <span id="rep-attendance-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">0 Punches</span>
+            </div>
+            <div id="rep-attendance-container" class="space-y-2">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Section C: Expiries on Selected Date -->
+          <div class="space-y-3 pt-2">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation text-amber-600"></i>
+                <span>3. Members Expired / Due on This Date</span>
+              </h4>
+              <span id="rep-expiries-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">0 Expired</span>
+            </div>
+            <div id="rep-expiries-container" class="space-y-2">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SECTION 6: SETTINGS & GYM OWNER PROFILE    -->
+      <!-- ========================================== -->
+      <div id="view-settings" class="portal-tab-content space-y-6 hidden">
+        <div class="max-w-4xl mx-auto space-y-6">
+          
+          <!-- Header Banner -->
+          <div class="solar-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-orange-600 flex items-center gap-1.5">
+                <i class="fa-solid fa-gear"></i>
+                Admin Configuration
+              </span>
+              <h3 class="text-xl font-bold text-slate-900 mt-0.5">Gym Profile & System Settings</h3>
+              <p class="text-xs text-slate-500">Apni profile photo, gym branding details, batch timings aur membership pricing manage karein.</p>
+            </div>
+
+            <button onclick="saveGymSettings()" class="btn-solar px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>Save Settings</span>
+            </button>
+          </div>
+
+          <!-- Card 1: Owner Profile & Photo Upload -->
+          <div class="solar-card p-6 sm:p-8 space-y-6">
+            <h4 class="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100 flex items-center gap-2">
+              <i class="fa-solid fa-id-card text-orange-600"></i>
+              <span>Owner & Gym Identity</span>
+            </h4>
+
+            <!-- Profile Photo Section -->
+            <div class="flex flex-col sm:flex-row sm:items-center gap-6 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+              <div class="relative w-24 h-24 rounded-full bg-orange-100 border-2 border-orange-400 overflow-hidden flex items-center justify-center flex-shrink-0 shadow-md">
+                <span id="settings-avatar-initials" class="text-2xl font-black text-orange-600">RJ</span>
+                <img id="settings-avatar-img" src="" alt="Profile Preview" class="w-full h-full object-cover hidden">
+              </div>
+
+              <div class="space-y-2">
+                <div class="text-sm font-bold text-slate-900">Owner Profile Photo</div>
+                <p class="text-xs text-slate-500">Apni photo upload karein. Ye dashboard header, sidebar aur member passes me display hogi.</p>
+                
+                <div class="flex items-center gap-2 pt-1">
+                  <label class="btn-solar px-3.5 py-1.5 rounded-xl font-semibold text-xs cursor-pointer flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <span>Upload New Photo</span>
+                    <input type="file" id="settings-photo-input" accept="image/*" class="hidden" onchange="handleProfilePhotoUpload(event)">
+                  </label>
+                  <button type="button" onclick="removeProfilePhoto()" class="px-3 py-1.5 rounded-xl bg-slate-200 hover:bg-rose-50 hover:text-rose-600 text-slate-700 text-xs font-semibold transition">
+                    Remove Photo
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Identity Fields -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Owner Full Name *</label>
+                <input type="text" id="settings-owner-name" value="Rishi Jha" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none transition font-medium">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Gym / Brand Name *</label>
+                <input type="text" id="settings-gym-name" value="OG Fitness" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none transition font-medium">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Helpline / WhatsApp Phone *</label>
+                <input type="tel" id="settings-phone" value="9876543210" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 font-mono focus:outline-none transition font-medium">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Support Email</label>
+                <input type="email" id="settings-email" value="owner@ogfitness.com" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none transition font-medium">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Gym Address / Branch Location</label>
+              <input type="text" id="settings-address" value="City Center, Main Road" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none transition font-medium">
+            </div>
+          </div>
+
+          <!-- Card 2: Operating Hours & Batches -->
+          <div class="solar-card p-6 sm:p-8 space-y-5">
+            <h4 class="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100 flex items-center gap-2">
+              <i class="fa-solid fa-clock text-orange-600"></i>
+              <span>Gym Batch Timings & UPI Settings</span>
+            </h4>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Morning Batch</label>
+                <input type="text" id="settings-morning-timing" value="06:00 AM - 11:30 AM" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-mono focus:outline-none transition">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Evening Batch</label>
+                <input type="text" id="settings-evening-timing" value="04:30 PM - 10:00 PM" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-mono focus:outline-none transition">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Counter UPI ID</label>
+                <input type="text" id="settings-upi-id" value="ogfitness@upi" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs text-slate-900 font-mono focus:outline-none transition">
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Membership Plan Pricing -->
+          <div class="solar-card p-6 sm:p-8 space-y-5">
+            <h4 class="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100 flex items-center gap-2">
+              <i class="fa-solid fa-tags text-orange-600"></i>
+              <span>Membership Plans & Fee Structure (₹)</span>
+            </h4>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <span class="text-xs font-bold text-slate-800 block">1 Month Essential</span>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-xs font-bold text-slate-400">₹</span>
+                  <input type="number" id="settings-plan-p1" value="1499" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-orange-500">
+                </div>
+                <span class="text-[10px] text-slate-400 block font-mono">30 Days Validity</span>
+              </div>
+
+              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <span class="text-xs font-bold text-slate-800 block">3 Months Strength</span>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-xs font-bold text-slate-400">₹</span>
+                  <input type="number" id="settings-plan-p2" value="3999" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-orange-500">
+                </div>
+                <span class="text-[10px] text-slate-400 block font-mono">90 Days Validity</span>
+              </div>
+
+              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <span class="text-xs font-bold text-slate-800 block">6 Months Pro Athlete</span>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-xs font-bold text-slate-400">₹</span>
+                  <input type="number" id="settings-plan-p3" value="6999" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-orange-500">
+                </div>
+                <span class="text-[10px] text-slate-400 block font-mono">180 Days Validity</span>
+              </div>
+
+              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                <span class="text-xs font-bold text-slate-800 block">12 Months Elite VIP</span>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-xs font-bold text-slate-400">₹</span>
+                  <input type="number" id="settings-plan-p4" value="11999" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-slate-900 focus:outline-none focus:border-orange-500">
+                </div>
+                <span class="text-[10px] text-slate-400 block font-mono">365 Days Validity</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Save Bar -->
+          <div class="pt-2 text-right">
+            <button onclick="saveGymSettings()" class="btn-solar px-8 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider inline-flex items-center gap-2 shadow-sm">
+              <i class="fa-solid fa-floppy-disk"></i>
+              <span>Save Gym Settings</span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODALS -->
+  <!-- ========================================== -->
+
+  <!-- 1. Dedicated Table Standee QR Modal -->
+  <div id="standee-qr-modal" class="portal-modal fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+    <div class="solar-card w-full max-w-lg p-6 sm:p-8 space-y-6 relative shadow-2xl">
+      <button onclick="closeStandeeModal()" class="absolute top-5 right-5 w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition">
+        <i class="fa-solid fa-xmark text-base"></i>
+      </button>
+
+      <div>
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-orange-50 text-orange-600 text-[10px] font-bold uppercase tracking-wider mb-1">
+          Reception Desk Display
+        </span>
+        <h3 class="text-xl font-bold text-slate-900">Table Standee QR Code</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Isko print karke counter par chipkayein. Member phone se scan karega to direct attendance lagegi.</p>
+      </div>
+
+      <!-- Printable Standee -->
+      <div id="printable-table-standee" class="bg-white p-6 rounded-2xl border-2 border-orange-500 text-center space-y-4 shadow-sm relative">
+        <div class="flex items-center justify-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 text-white flex items-center justify-center font-bold text-base">
+            <i class="fa-solid fa-dumbbell"></i>
+          </div>
+          <div class="text-left">
+            <div class="text-xl font-bold text-slate-900 leading-none">OG Fitness</div>
+            <div class="text-[9px] text-slate-400 font-mono tracking-widest uppercase">Self-Punch Reception Desk</div>
+          </div>
+        </div>
+
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 inline-block mx-auto">
+          <img id="standee-qr-img" src="" alt="Reception Desk QR Standee" class="w-48 h-48 object-contain">
+        </div>
+
+        <div class="space-y-1">
+          <div class="inline-flex items-center gap-1.5 bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-xs font-bold uppercase">
+            <i class="fa-solid fa-mobile-screen"></i>
+            <span>Scan With Phone Camera</span>
+          </div>
+          <p class="text-[11px] text-slate-600">1. Scan QR &bull; 2. Select Your Name &bull; 3. Auto Punch In</p>
+        </div>
+
+        <div class="text-[9px] text-slate-400 font-mono">
+          URL: <span id="standee-url-display" class="text-slate-600">Loading...</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <button onclick="printTableStandee()" class="btn-solar py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-1.5 shadow-sm">
+          <i class="fa-solid fa-print"></i>
+          <span>Print Standee</span>
+        </button>
+        <a id="standee-test-btn" href="punch.html" target="_blank" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 rounded-xl text-xs uppercase flex items-center justify-center gap-1.5 transition">
+          <i class="fa-solid fa-arrow-up-right-from-square text-orange-600"></i>
+          <span>Open Phone View</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Camera Scanner Modal -->
+  <div id="camera-scanner-modal" class="portal-modal fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+    <div class="solar-card w-full max-w-md p-6 space-y-4 relative shadow-2xl">
+      <button onclick="closeCameraScannerModal()" class="absolute top-5 right-5 w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition">
+        <i class="fa-solid fa-xmark text-base"></i>
+      </button>
+
+      <div>
+        <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <i class="fa-solid fa-camera text-sky-600"></i>
+          <span>Live Camera QR Scanner</span>
+        </h3>
+        <p class="text-xs text-slate-500">Scan member's personal QR badge.</p>
+      </div>
+
+      <div class="scanner-container relative w-full aspect-[4/3] rounded-2xl overflow-hidden border border-slate-200 bg-black flex items-center justify-center">
+        <div id="qr-reader" class="w-full h-full"></div>
+        <div class="scanner-laser"></div>
+        <div class="scanner-reticle"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Punch Result Popup Modal -->
+  <div id="punch-result-modal" class="portal-modal fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+    <div class="solar-card w-full max-w-sm p-6 text-center space-y-4 shadow-2xl border-orange-300">
+      <div class="w-14 h-14 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-2xl mx-auto">
+        <i class="fa-solid fa-fingerprint"></i>
+      </div>
+      <div>
+        <div id="punch-modal-type" class="text-orange-600 font-bold text-xs uppercase tracking-widest">PUNCH IN RECORDED</div>
+        <h3 id="punch-modal-name" class="text-2xl font-bold text-slate-900 mt-1">Rohit Verma</h3>
+        <p id="punch-modal-id" class="text-xs text-slate-400 font-mono">OG-1001 &bull; +91 9811223344</p>
+      </div>
+
+      <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5 text-xs">
+        <div class="flex justify-between"><span class="text-slate-500">Plan:</span> <span id="punch-modal-plan" class="font-bold text-slate-800">3 Months Strength</span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Punch Time:</span> <span id="punch-modal-time" class="font-mono text-orange-600 font-bold">07:30 AM</span></div>
+        <div class="flex justify-between items-center pt-1 border-t border-slate-200"><span class="text-slate-500">Validity:</span> <span id="punch-modal-expiry">Active</span></div>
+      </div>
+
+      <button class="close-portal-modal w-full btn-solar font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider">
+        Done
+      </button>
+    </div>
+  </div>
+
+  <!-- 4. Printable Member ID Card Modal -->
+  <div id="id-card-modal" class="portal-modal fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+    <div class="solar-card w-full max-w-md p-6 space-y-5 shadow-2xl relative">
+      <button class="close-portal-modal absolute top-5 right-5 text-slate-400 hover:text-slate-700">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div>
+        <span class="text-[10px] font-bold uppercase tracking-wider text-orange-600">Official Pass</span>
+        <h3 class="text-lg font-bold text-slate-900">Member Digital Pass & QR</h3>
+      </div>
+
+      <div id="printable-id-card" class="bg-white p-5 rounded-xl border-2 border-slate-200 shadow-sm relative">
+        <div class="flex justify-between items-start mb-3">
+          <div class="flex items-center space-x-2">
+            <div class="w-6 h-6 rounded-md bg-orange-600 text-white flex items-center justify-center font-bold text-xs">
+              <i class="fa-solid fa-dumbbell"></i>
+            </div>
+            <span class="text-base font-bold text-slate-900">OG Fitness</span>
+          </div>
+          <span class="text-[10px] bg-orange-100 text-orange-700 font-bold px-2 py-0.5 rounded uppercase">VIP Member</span>
+        </div>
+
+        <div class="grid grid-cols-12 gap-3 items-center">
+          <div class="col-span-7 space-y-1">
+            <h4 id="card-name" class="text-lg font-bold text-slate-900 leading-tight">Ankit Sharma</h4>
+            <div class="text-xs text-orange-600 font-mono font-bold" id="card-id">OG-1007</div>
+            <div class="text-[11px] text-slate-600" id="card-phone">+91 9812345678</div>
+            <div class="text-[10px] text-slate-400 pt-1">
+              Plan: <span id="card-plan" class="text-slate-700 font-semibold">3 Months Strength</span><br>
+              Valid Till: <span id="card-expiry" class="text-slate-900 font-bold font-mono">2027-02-22</span>
+            </div>
+          </div>
+
+          <div class="col-span-5 flex flex-col items-center">
+            <div class="p-1.5 bg-slate-50 rounded-lg border border-slate-200">
+              <img id="card-qr-img" src="" alt="Member QR Code" class="w-20 h-20 object-contain">
+            </div>
+            <span class="text-[9px] text-slate-400 mt-1 uppercase font-mono">Scan at Desk</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 pt-1">
+        <a id="card-wa-welcome" href="#" target="_blank" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs uppercase flex items-center justify-center gap-1.5 transition">
+          <i class="fa-brands fa-whatsapp text-sm"></i>
+          <span>WhatsApp Card</span>
+        </a>
+        <button onclick="window.print()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs uppercase flex items-center justify-center gap-1.5 border border-slate-200 transition">
+          <i class="fa-solid fa-print text-sm text-orange-600"></i>
+          <span>Print Physical</span>
+        </button>
+      </div>
+
+      <button onclick="closeModalAndGoToDirectory()" class="w-full btn-solar font-bold py-3 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm">
+        <i class="fa-solid fa-users"></i>
+        <span>Done &bull; View in Member Directory &rarr;</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 4. Delete / Remove Member Confirmation Modal -->
+  <div id="delete-member-modal" class="portal-modal fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+    <div class="solar-card w-full max-w-md p-6 space-y-5 relative shadow-2xl border border-rose-200">
+      <div class="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center text-xl mx-auto shadow-sm">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+
+      <div class="text-center space-y-1">
+        <h3 class="text-lg font-bold text-slate-900">Member Record Hatayein?</h3>
+        <p class="text-xs text-slate-500">Agar member gym chhod kar chala gaya hai, to aap inka record permanently delete kar sakte hain.</p>
+      </div>
+
+      <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+        <div class="flex justify-between">
+          <span class="text-slate-500">Member Name:</span>
+          <span id="delete-modal-name" class="font-bold text-slate-900">-</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-500">Member ID:</span>
+          <span id="delete-modal-id" class="font-mono font-bold text-orange-600">-</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-500">Phone:</span>
+          <span id="delete-modal-phone" class="font-mono text-slate-700">-</span>
+        </div>
+      </div>
+
+      <input type="hidden" id="delete-modal-target-id" value="">
+
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <button onclick="closeDeleteMemberModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">
+          Nahi, Cancel
+        </button>
+        <button onclick="executeDeleteMember()" class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm">
+          <i class="fa-solid fa-trash-can"></i>
+          <span>Haan, Hatayein</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed top-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+  <!-- Script Helpers for Sidebar & Modals -->
+  <script>
+    function closeModalAndGoToDirectory() {
+      const modal = document.getElementById('id-card-modal');
+      if (modal) modal.classList.remove('active');
+      switchTab('members-sheet');
+    }
+
+    function toggleMobileSidebar() {
+      const sidebar = document.getElementById('app-sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      sidebar.classList.toggle('-translate-x-full');
+      backdrop.classList.toggle('hidden');
+    }
+
+    function switchTab(tabId) {
+      // Update sidebar active state
+      document.querySelectorAll('[data-tab-btn]').forEach(btn => {
+        if (btn.getAttribute('data-tab-btn') === tabId) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      // Show target content
+      document.querySelectorAll('.portal-tab-content').forEach(view => {
+        if (view.id === `view-${tabId}`) {
+          view.classList.remove('hidden');
+        } else {
+          view.classList.add('hidden');
+        }
+      });
+
+      // Close mobile sidebar if open
+      const sidebar = document.getElementById('app-sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      if (!sidebar.classList.contains('-translate-x-full')) {
+        sidebar.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
+      }
+    }
+
+    function openStandeeModal() {
+      const modal = document.getElementById('standee-qr-modal');
+      if (modal) modal.classList.add('active');
+    }
+    function closeStandeeModal() {
+      const modal = document.getElementById('standee-qr-modal');
+      if (modal) modal.classList.remove('active');
+    }
+    function openCameraScannerModal() {
+      const modal = document.getElementById('camera-scanner-modal');
+      if (modal) {
+        modal.classList.add('active');
+        if (typeof startQrScanner === 'function') startQrScanner();
+      }
+    }
+    function closeCameraScannerModal() {
+      const modal = document.getElementById('camera-scanner-modal');
+      if (modal) {
+        modal.classList.remove('active');
+        if (typeof stopQrScanner === 'function') stopQrScanner();
+      }
+    }
+  </script>
+
+  <!-- App Core Logic -->
+  <script src="js/portal.js"></script>
+
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
