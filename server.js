@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -31,6 +32,187 @@ function broadcastToClients(data) {
   });
 }
 
+// ==========================================
+// WhatsApp Automated Engine & Gateway Helper
+// ==========================================
+function sendWhatsAppViaUltraMsg(instanceId, token, phone, message) {
+  return new Promise((resolve, reject) => {
+    if (!instanceId || !token) {
+      return reject(new Error('WhatsApp instanceId or token is missing'));
+    }
+
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const formattedPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+
+    const postData = JSON.stringify({
+      token: token,
+      to: formattedPhone,
+      body: message
+    });
+
+    const options = {
+      hostname: 'api.ultramsg.com',
+      port: 443,
+      path: `/${instanceId}/messages/chat`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      },
+      timeout: 12000
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.sent === 'true' || parsed.id || res.statusCode === 200) {
+            resolve(parsed);
+          } else {
+            reject(new Error(parsed.message || parsed.error || `Send failed (HTTP ${res.statusCode})`));
+          }
+        } catch(e) {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve({ raw: data });
+          } else {
+            reject(new Error(`HTTP ${res.statusCode}: ${data}`));
+          }
+        }
+      });
+    });
+
+    req.on('error', (err) => reject(err));
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('WhatsApp Gateway request timed out'));
+    });
+    req.write(postData);
+    req.end();
+  });
+}
+
+function generateExpiryReminderText(member, gymName, gymPhone, daysRemaining) {
+  let urgency = 'khatam ho chuki hai';
+  if (daysRemaining === 2) urgency = '2 din me';
+  else if (daysRemaining === 1) urgency = 'kal (1 din me)';
+  else if (daysRemaining > 0) urgency = `${daysRemaining} din me`;
+
+  return (
+    `💪 *${gymName || 'OG FITNESS'} - MEMBERSHIP ALERT*\n\n` +
+    `Namaste *${member.name}* Ji,\n` +
+    `Aapki gym membership (${member.planName || 'Workout Plan'}) *${urgency} (${member.expiryDate})* ko expire ho rahi hai.\n\n` +
+    `Apni transformation progress continue rakhne ke liye kripya reception desk par jakar ya online apna plan renew karwayein.\n\n` +
+    `📍 ${gymName || 'OG Fitness Elite Hub'}\n` +
+    `📞 Helpline / Reception: +91 ${gymPhone || '9876543210'}\n` +
+    `Stay Hard & Keep Grinding! 🏋️‍♂️`
+  );
+}
+
+async function processDailyWhatsAppReminders(forceAll = false) {
+  const settings = getStoredSettings();
+  const wa = settings.whatsapp || {};
+
+  if (!wa.instanceId || !wa.token) {
+    return { success: false, error: 'WhatsApp Gateway instanceId or token not configured' };
+  }
+
+  const members = getStoredMembers();
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+
+  const results = {
+    totalChecked: members.length,
+    sentCount: 0,
+    skippedCount: 0,
+    errors: []
+  };
+
+  for (const m of members) {
+    if (!m.expiryDate || !m.phone) {
+      results.skippedCount++;
+      continue;
+    }
+
+    const expDate = new Date(m.expiryDate);
+    const diffTime = expDate - new Date(todayStr);
+    const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    // Target: Expiring in 2 days or expired recently (up to 7 days past)
+    const isTarget = (daysRemaining <= 2 && daysRemaining >= -7);
+
+    if (!isTarget) {
+      results.skippedCount++;
+      continue;
+    }
+
+    // Skip if already reminded today (unless forceAll is true)
+    if (!forceAll && m.lastReminderDate === todayStr) {
+      results.skippedCount++;
+      continue;
+    }
+
+    const message = generateExpiryReminderText(m, settings.gymName, settings.phone, daysRemaining);
+
+    try {
+      await sendWhatsAppViaUltraMsg(wa.instanceId, wa.token, m.phone, message);
+      m.lastReminderDate = todayStr;
+      results.sentCount++;
+
+      // Broadcast live event to owner screen!
+      broadcastToClients({
+        type: 'WHATSAPP_AUTO_SENT',
+        data: {
+          memberId: m.id,
+          memberName: m.name,
+          phone: m.phone,
+          expiryDate: m.expiryDate,
+          sentTime: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        }
+      });
+    } catch (err) {
+      results.errors.push({ memberId: m.id, name: m.name, error: err.message });
+    }
+  }
+
+  if (results.sentCount > 0) {
+    saveStoredMembers(members);
+  }
+
+  return { success: true, ...results };
+}
+
+let lastAutoSendDate = '';
+function startDailyReminderScheduler() {
+  setInterval(async () => {
+    try {
+      const settings = getStoredSettings();
+      const wa = settings.whatsapp || {};
+      if (!wa.autoSendEnabled || !wa.instanceId || !wa.token) return;
+
+      const now = new Date();
+      // Indian Standard Time (UTC + 5:30)
+      const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+      const currentHour = istTime.getUTCHours();
+      const todayStr = istTime.toISOString().split('T')[0];
+
+      const targetHour = parseInt(wa.sendHour) || 9;
+
+      if (currentHour >= targetHour && lastAutoSendDate !== todayStr) {
+        lastAutoSendDate = todayStr;
+        console.log(`[WhatsApp Auto-Scheduler] Running daily morning reminder check for ${todayStr}...`);
+        const result = await processDailyWhatsAppReminders(false);
+        console.log(`[WhatsApp Auto-Scheduler] Sent: ${result.sentCount}, Skipped: ${result.skippedCount}`);
+      }
+    } catch (e) {
+      console.error('[WhatsApp Auto-Scheduler] Error:', e.message);
+    }
+  }, 15 * 60 * 1000); // Check every 15 minutes
+}
+
+startDailyReminderScheduler();
+
 const server = http.createServer((req, res) => {
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = parsedUrl.pathname;
@@ -54,6 +236,14 @@ const DEFAULT_SETTINGS = {
   morningTiming: '06:00 AM - 11:30 AM',
   eveningTiming: '04:30 PM - 10:00 PM',
   upiId: 'ogfitness@upi',
+  standeeUrl: 'https://og-fitness-app.onrender.com/punch.html',
+  whatsapp: {
+    autoSendEnabled: true,
+    sendHour: 9,
+    instanceId: '',
+    token: '',
+    testPhone: '7440858141'
+  },
   plans: [
     { id: 'p1', name: '1 Month Essential', price: 1499, durationDays: 30 },
     { id: 'p2', name: '3 Months Strength', price: 3999, durationDays: 90 },
@@ -298,6 +488,102 @@ function saveStoredSettings(settings) {
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: 'Invalid JSON payload' }));
+      }
+    });
+    return;
+  }
+
+  // 6. API: Test WhatsApp Message
+  if (pathname === '/api/whatsapp/send-test' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const settings = getStoredSettings();
+        const wa = settings.whatsapp || {};
+
+        const instanceId = payload.instanceId || wa.instanceId;
+        const token = payload.token || wa.token;
+        const phone = payload.phone || wa.testPhone || settings.phone;
+
+        if (!instanceId || !token) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ success: false, error: 'Instance ID aur Token zaroori hai. Settings me UltraMsg credentials bharein.' }));
+          return;
+        }
+
+        const testMsg = `🏋️‍♂️ *OG FITNESS - TEST WHATSAPP ALERT*\n\n` +
+          `Namaste *${settings.ownerName || 'Owner'}* Ji,\n` +
+          `Aapka WhatsApp Gateway successfully connect ho gaya hai! 🎉\n` +
+          `Ab roz subah 9:00 baje gym members ko unki membership expiry ka reminder apne aap chala jayega.\n\n` +
+          `Gym: ${settings.gymName || 'OG Fitness'}\n` +
+          `Status: ✅ Active & Ready`;
+
+        const resp = await sendWhatsAppViaUltraMsg(instanceId, token, phone, testMsg);
+
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: true, message: `Test WhatsApp message sent to ${phone}!`, data: resp }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 7. API: Manual Trigger for Daily Expiry Auto-Send Batch
+  if (pathname === '/api/whatsapp/trigger-daily' && req.method === 'POST') {
+    processDailyWhatsAppReminders(true)
+      .then(summary => {
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify(summary));
+      })
+      .catch(err => {
+        res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      });
+    return;
+  }
+
+  // 8. API: Send Single Member Reminder via Gateway
+  if (pathname === '/api/whatsapp/send-single' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const settings = getStoredSettings();
+        const wa = settings.whatsapp || {};
+
+        if (!wa.instanceId || !wa.token) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ success: false, error: 'UltraMsg Gateway connect nahi hai. Settings me Instance ID & Token fill karein.' }));
+          return;
+        }
+
+        const members = getStoredMembers();
+        const member = members.find(m => m.id === payload.memberId);
+        if (!member) {
+          res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ success: false, error: 'Member nahi mila' }));
+          return;
+        }
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        const expDate = new Date(member.expiryDate);
+        const daysRemaining = Math.ceil((expDate - new Date(todayStr)) / (1000 * 60 * 60 * 24));
+        const message = generateExpiryReminderText(member, settings.gymName, settings.phone, daysRemaining);
+
+        const resp = await sendWhatsAppViaUltraMsg(wa.instanceId, wa.token, member.phone, message);
+        member.lastReminderDate = todayStr;
+        saveStoredMembers(members);
+
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: true, message: `WhatsApp reminder sent to ${member.name}!`, data: resp }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
       }
     });
     return;

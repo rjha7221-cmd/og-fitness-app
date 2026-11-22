@@ -732,10 +732,14 @@ function renderExpiryAlerts() {
           </div>
         </div>
 
-        <div class="flex items-center gap-2 self-end sm:self-center">
-          <button onclick="sendWhatsAppReminder('${m.id}')" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition">
+        <div class="flex items-center gap-2 self-end sm:self-center flex-wrap">
+          <button onclick="sendSingleWhatsAppAuto('${m.id}')" title="Send direct via WhatsApp Gateway" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition">
+            <i class="fa-solid fa-paper-plane text-xs"></i>
+            <span>Auto Send</span>
+          </button>
+          <button onclick="sendWhatsAppReminder('${m.id}')" title="Open 1-Click WhatsApp Web/App" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-emerald-700 font-bold text-xs flex items-center gap-1.5 border border-slate-200 transition">
             <i class="fa-brands fa-whatsapp text-sm"></i>
-            <span>Send WhatsApp Alert</span>
+            <span>1-Click</span>
           </button>
         </div>
       </div>
@@ -1228,6 +1232,20 @@ function applyGymSettings(s) {
   if (eveningInput) eveningInput.value = s.eveningTiming || '';
   if (upiInput) upiInput.value = s.upiId || '';
 
+  // WhatsApp Gateway Settings
+  const wa = s.whatsapp || {};
+  const waAuto = document.getElementById('settings-wa-auto');
+  const waHour = document.getElementById('settings-wa-hour');
+  const waInst = document.getElementById('settings-wa-instance');
+  const waTok = document.getElementById('settings-wa-token');
+  const waTestPhone = document.getElementById('settings-wa-test-phone');
+
+  if (waAuto) waAuto.checked = wa.autoSendEnabled !== false;
+  if (waHour) waHour.value = wa.sendHour || 9;
+  if (waInst) waInst.value = wa.instanceId || '';
+  if (waTok) waTok.value = wa.token || '';
+  if (waTestPhone) waTestPhone.value = wa.testPhone || s.phone || '7440858141';
+
   // Plan pricing
   if (s.plans && Array.isArray(s.plans)) {
     s.plans.forEach(p => {
@@ -1330,6 +1348,21 @@ async function saveGymSettings() {
   });
   localStorage.setItem(DB_KEYS.PLANS, JSON.stringify(plans));
 
+  // WhatsApp Gateway Settings
+  const waAuto = document.getElementById('settings-wa-auto')?.checked ?? true;
+  const waHour = parseInt(document.getElementById('settings-wa-hour')?.value) || 9;
+  const waInstance = document.getElementById('settings-wa-instance')?.value.trim() || '';
+  const waToken = document.getElementById('settings-wa-token')?.value.trim() || '';
+  const waTestPhone = document.getElementById('settings-wa-test-phone')?.value.trim() || '';
+
+  const whatsapp = {
+    autoSendEnabled: waAuto,
+    sendHour: waHour,
+    instanceId: waInstance,
+    token: waToken,
+    testPhone: waTestPhone
+  };
+
   const updatedSettings = {
     ...current,
     ownerName,
@@ -1340,6 +1373,7 @@ async function saveGymSettings() {
     morningTiming,
     eveningTiming,
     upiId,
+    whatsapp,
     plans
   };
 
@@ -1356,6 +1390,124 @@ async function saveGymSettings() {
   } catch(e) {}
 
   showNotification('✅ Gym Settings & Profile successfully saved!', 'success');
+}
+
+async function sendTestWhatsAppMessage() {
+  const phone = document.getElementById('settings-wa-test-phone')?.value.trim();
+  const instanceId = document.getElementById('settings-wa-instance')?.value.trim();
+  const token = document.getElementById('settings-wa-token')?.value.trim();
+  const statusEl = document.getElementById('wa-test-status');
+  const btn = document.getElementById('btn-wa-test');
+
+  if (!phone) {
+    showNotification('⚠️ Kripya test mobile number daalein.', 'warning');
+    return;
+  }
+  if (!instanceId || !token) {
+    showNotification('⚠️ Kripya UltraMsg Instance ID aur Token fill karein.', 'warning');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+  }
+  if (statusEl) {
+    statusEl.textContent = 'Sending test WhatsApp message...';
+    statusEl.className = 'text-xs font-medium text-slate-500';
+  }
+
+  try {
+    const res = await fetch('/api/whatsapp/send-test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, instanceId, token })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      if (statusEl) {
+        statusEl.textContent = '✅ WhatsApp message sent successfully!';
+        statusEl.className = 'text-xs font-bold text-emerald-600';
+      }
+      showNotification(`✅ Test WhatsApp message sent to ${phone}!`, 'success');
+    } else {
+      throw new Error(data.error || 'Failed to send');
+    }
+  } catch (err) {
+    if (statusEl) {
+      statusEl.textContent = `❌ Error: ${err.message}`;
+      statusEl.className = 'text-xs font-bold text-rose-600';
+    }
+    showNotification(`❌ WhatsApp Error: ${err.message}`, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span>Send Test</span>';
+    }
+  }
+}
+
+async function triggerAutoWhatsAppBatch() {
+  const btn = document.getElementById('auto-whatsapp-batch-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending Auto WhatsApp...';
+  }
+
+  try {
+    const res = await fetch('/api/whatsapp/trigger-daily', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      showNotification(`🎉 Auto WhatsApp Batch Complete! Sent: ${data.sentCount}, Skipped: ${data.skippedCount}`, 'success');
+      renderExpiryAlerts();
+    } else {
+      if (data.error && data.error.includes('not configured')) {
+        showNotification('⚠️ UltraMsg Gateway connect nahi hai. Settings me jakar Instance ID & Token fill karein!', 'warning');
+        switchTab('settings');
+      } else {
+        throw new Error(data.error || 'Batch send failed');
+      }
+    }
+  } catch (err) {
+    showNotification(`❌ Error: ${err.message}`, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-bolt"></i> <span>⚡ Run Auto-Send WhatsApp Now</span>';
+    }
+  }
+}
+
+async function sendSingleWhatsAppAuto(memberId) {
+  try {
+    showNotification('Sending WhatsApp reminder via Gateway...', 'info');
+    const res = await fetch('/api/whatsapp/send-single', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      showNotification(data.message, 'success');
+      renderExpiryAlerts();
+    } else {
+      if (data.error && data.error.includes('connect nahi hai')) {
+        showNotification('Gateway connect nahi hai, 1-Click WhatsApp open kar rahe hain...', 'info');
+        sendWhatsAppReminder(memberId);
+      } else {
+        throw new Error(data.error || 'Failed');
+      }
+    }
+  } catch (err) {
+    showNotification(`Error: ${err.message}. Opening 1-Click WhatsApp...`, 'warning');
+    sendWhatsAppReminder(memberId);
+  }
 }
 
 // 10. Initialization & Event Listeners
