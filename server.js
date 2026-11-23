@@ -814,6 +814,66 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (pathname === '/api/expenses/bulk-import' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body);
+        const incoming = Array.isArray(payload) ? payload : (payload.expenses || []);
+        if (!Array.isArray(incoming) || incoming.length === 0) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ success: false, error: 'Koi valid expense entries nahi mili.' }));
+          return;
+        }
+
+        const now = Date.now();
+        const todayStr = getTodayStrIST();
+        const validExpenses = [];
+        let totalAmount = 0;
+
+        incoming.forEach((item, index) => {
+          const amount = parseFloat(item.amount) || 0;
+          if (amount <= 0 || !item.title) return;
+
+          const expense = {
+            id: item.id || `exp-${now}-${index}-${Math.floor(Math.random() * 1000)}`,
+            title: String(item.title).trim(),
+            category: item.category || 'Other',
+            amount: amount,
+            date: item.date || todayStr,
+            paymentMode: item.paymentMode || 'UPI',
+            notes: item.notes ? String(item.notes).trim() : 'Bulk Imported'
+          };
+          validExpenses.push(expense);
+          totalAmount += amount;
+        });
+
+        if (validExpenses.length === 0) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ success: false, error: 'Koi valid expense record nahi mila (title aur positive amount zaroori hai).' }));
+          return;
+        }
+
+        const expenses = getStoredExpenses();
+        const updated = [...validExpenses, ...expenses];
+        saveStoredExpenses(updated);
+
+        broadcastToClients({
+          type: 'EXPENSES_BULK_IMPORTED',
+          data: { count: validExpenses.length, totalAmount }
+        });
+
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: true, count: validExpenses.length, totalAmount, expenses: validExpenses }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ success: false, error: 'Invalid JSON payload: ' + err.message }));
+      }
+    });
+    return;
+  }
+
   // 10. API: Send Custom WhatsApp Message (Receipts, Diet Plans, Absentee Nudges)
   if (pathname === '/api/whatsapp/send-custom' && req.method === 'POST') {
     let body = '';

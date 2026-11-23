@@ -3023,4 +3023,640 @@ function exportExpensesToCSV() {
   showNotification('📊 Expenses CSV Downloaded!', 'success');
 }
 
+// ========================================================
+// EXPENSE SMART ENTRY & BULK IMPORT ENGINE (CSV & PDF)
+// ========================================================
+
+// 1. Natural Language & Voice Entry Engine ("Likh kar / Bol kar jodein")
+function parseNaturalExpenseText(rawText) {
+  if (!rawText || !rawText.trim()) return null;
+  const text = rawText.trim();
+
+  // 1. Extract Amount (e.g. ₹3500, 3,500, 3500 rs, rs 3500, 3500/-)
+  let amount = 0;
+  const amountMatch = text.match(/(?:₹|rs\.?|inr)?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]+)?|[0-9]+(?:\.[0-9]+)?)\s*(?:\/-\s*|rs\.?|rupees|rupaye)?/i);
+  if (amountMatch) {
+    amount = parseFloat(amountMatch[1].replace(/,/g, ''));
+  }
+
+  // 2. Extract Payment Mode
+  let paymentMode = 'UPI';
+  if (/\b(?:cash|nakad|rokar)\b/i.test(text)) {
+    paymentMode = 'Cash';
+  } else if (/\b(?:bank|neft|rtgs|imps|cheque|check|transfer)\b/i.test(text)) {
+    paymentMode = 'Bank Transfer';
+  } else if (/\b(?:card|debit|credit|pos)\b/i.test(text)) {
+    paymentMode = 'Card';
+  } else if (/\b(?:upi|gpay|phonepe|paytm|online)\b/i.test(text)) {
+    paymentMode = 'UPI';
+  }
+
+  // 3. Extract Category
+  let category = 'Other';
+  const lower = text.toLowerCase();
+  if (/(?:bijli|electricity|power|light|current|eb bill)/i.test(lower)) {
+    category = 'Electricity';
+  } else if (/(?:rent|kiraya|room rent|gym rent|lease)/i.test(lower)) {
+    category = 'Rent';
+  } else if (/(?:salary|trainer|trainer salary|vetan|staff|housekeeping|sweeper)/i.test(lower)) {
+    category = 'Trainer Salary';
+  } else if (/(?:equipment|machine|dumbbell|barbell|plate|treadmill|cable)/i.test(lower)) {
+    category = 'Equipment';
+  } else if (/(?:repair|maintenance|marammat|service|oil|plumbing|welding)/i.test(lower)) {
+    category = 'Maintenance';
+  } else if (/(?:supplement|whey|protein|creatine|shaker|inventory)/i.test(lower)) {
+    category = 'Supplements';
+  } else if (/(?:marketing|ad|advertisement|flex|banner|poster|pamphlet)/i.test(lower)) {
+    category = 'Marketing';
+  }
+
+  // 4. Clean Title by removing matched payment mode and amount words
+  let title = text
+    .replace(/(?:₹|rs\.?|inr)?\s*[0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]+)?\s*(?:\/-\s*|rs\.?|rupees|rupaye)?/gi, '')
+    .replace(/\b(?:by\s+cash|by\s+upi|cash|nakad|upi|gpay|phonepe|paytm|online|bank transfer|card)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (title) {
+    title = title.charAt(0).toUpperCase() + title.slice(1);
+  } else {
+    title = `${category} Expense`;
+  }
+
+  return {
+    title,
+    category,
+    amount,
+    date: TODAY_STR,
+    paymentMode,
+    notes: `Smart Entry: "${rawText.trim()}"`
+  };
+}
+
+async function handleQuickExpenseSubmit(e) {
+  if (e) e.preventDefault();
+  const input = document.getElementById('quick-expense-input');
+  if (!input) return;
+  const rawText = input.value.trim();
+  if (!rawText) {
+    showNotification('Kripya kharcha likhein ya mic se bolkar batayein!', 'warning');
+    return;
+  }
+
+  const parsed = parseNaturalExpenseText(rawText);
+  if (!parsed || parsed.amount <= 0) {
+    showNotification('Kripya amount (₹) bhi likhein! (e.g. "Bijli bill 3500 cash")', 'warning');
+    return;
+  }
+
+  const newExpense = {
+    id: 'exp-' + Date.now(),
+    ...parsed
+  };
+
+  const expenses = getExpenses();
+  expenses.unshift(newExpense);
+  saveExpenses(expenses);
+
+  try {
+    await fetch('/api/expenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newExpense)
+    });
+  } catch (err) {}
+
+  showNotification(`✅ Kharcha darj hua: ₹${parsed.amount.toLocaleString('en-IN')} - ${parsed.title} (${parsed.paymentMode})`, 'success');
+  input.value = '';
+  renderExpensesView();
+}
+
+let expenseSpeechRecognition = null;
+let isExpenseVoiceListening = false;
+
+function toggleExpenseVoiceInput() {
+  const statusEl = document.getElementById('quick-expense-voice-status');
+  const micBtn = document.getElementById('btn-expense-voice');
+  const input = document.getElementById('quick-expense-input');
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    showNotification('Aapke browser me speech recognition support nahi hai. Kripya Chrome ya Edge use karein ya text likhein.', 'warning');
+    return;
+  }
+
+  if (isExpenseVoiceListening && expenseSpeechRecognition) {
+    expenseSpeechRecognition.stop();
+    isExpenseVoiceListening = false;
+    if (statusEl) statusEl.classList.add('hidden');
+    if (micBtn) micBtn.classList.remove('text-red-600', 'animate-pulse');
+    return;
+  }
+
+  try {
+    expenseSpeechRecognition = new SpeechRecognition();
+    expenseSpeechRecognition.lang = 'hi-IN';
+    expenseSpeechRecognition.continuous = false;
+    expenseSpeechRecognition.interimResults = false;
+
+    expenseSpeechRecognition.onstart = () => {
+      isExpenseVoiceListening = true;
+      if (statusEl) statusEl.classList.remove('hidden');
+      if (micBtn) micBtn.classList.add('text-red-600', 'animate-pulse');
+    };
+
+    expenseSpeechRecognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      if (input && transcript) {
+        input.value = transcript;
+        showNotification(`🎙️ Suna gaya: "${transcript}"`, 'info');
+        handleQuickExpenseSubmit();
+      }
+    };
+
+    expenseSpeechRecognition.onerror = (err) => {
+      if (statusEl) statusEl.classList.add('hidden');
+      if (micBtn) micBtn.classList.remove('text-red-600', 'animate-pulse');
+      isExpenseVoiceListening = false;
+      showNotification('Voice input error: ' + (err.error || 'mic error'), 'warning');
+    };
+
+    expenseSpeechRecognition.onend = () => {
+      isExpenseVoiceListening = false;
+      if (statusEl) statusEl.classList.add('hidden');
+      if (micBtn) micBtn.classList.remove('text-red-600', 'animate-pulse');
+    };
+
+    expenseSpeechRecognition.start();
+  } catch (err) {
+    showNotification('Mic access error: ' + err.message, 'warning');
+  }
+}
+
+// --------------------------------------------------------
+// 2. Bulk Import Modal & Parsing Engines (CSV & PDF)
+// --------------------------------------------------------
+let currentImportQueue = [];
+
+function openImportExpensesModal() {
+  const modal = document.getElementById('import-expenses-modal');
+  currentImportQueue = [];
+  resetImportPreview();
+  if (modal) modal.classList.add('active');
+}
+
+function closeImportExpensesModal() {
+  const modal = document.getElementById('import-expenses-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function switchImportTab(tab) {
+  const filePanel = document.getElementById('import-panel-file');
+  const pastePanel = document.getElementById('import-panel-paste');
+  const fileBtn = document.getElementById('import-tab-btn-file');
+  const pasteBtn = document.getElementById('import-tab-btn-paste');
+
+  if (tab === 'file') {
+    if (filePanel) filePanel.classList.remove('hidden');
+    if (pastePanel) pastePanel.classList.add('hidden');
+    if (fileBtn) {
+      fileBtn.className = 'pb-2.5 text-xs font-bold border-b-2 border-orange-500 text-orange-600 transition flex items-center gap-2';
+    }
+    if (pasteBtn) {
+      pasteBtn.className = 'pb-2.5 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2';
+    }
+  } else {
+    if (filePanel) filePanel.classList.add('hidden');
+    if (pastePanel) pastePanel.classList.remove('hidden');
+    if (pasteBtn) {
+      pasteBtn.className = 'pb-2.5 text-xs font-bold border-b-2 border-orange-500 text-orange-600 transition flex items-center gap-2';
+    }
+    if (fileBtn) {
+      fileBtn.className = 'pb-2.5 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2';
+    }
+  }
+}
+
+function resetImportPreview() {
+  const previewSection = document.getElementById('import-preview-section');
+  const previewTbody = document.getElementById('import-preview-tbody');
+  const previewCount = document.getElementById('import-preview-count');
+  const previewTotal = document.getElementById('import-preview-total');
+  const confirmBtn = document.getElementById('btn-confirm-import');
+  const fileStatus = document.getElementById('import-file-status');
+
+  if (previewSection) previewSection.classList.add('hidden');
+  if (previewTbody) previewTbody.innerHTML = '';
+  if (previewCount) previewCount.textContent = '0 items found';
+  if (previewTotal) previewTotal.textContent = '₹0';
+  if (confirmBtn) confirmBtn.disabled = true;
+  if (fileStatus) fileStatus.textContent = '';
+}
+
+function downloadSampleExpenseCSV() {
+  const sampleHeaders = ['Date', 'Expense Title', 'Category', 'Payment Mode', 'Amount (INR)', 'Notes'];
+  const sampleRows = [
+    ['2026-11-20', 'Gym Rent for Month', 'Rent', 'Bank Transfer', '25000', 'Paid to Landlord'],
+    ['2026-11-21', 'Electricity Bill', 'Electricity', 'UPI', '3500', 'MPEB Online Pay'],
+    ['2026-11-22', 'Trainer Salary - Rohit', 'Trainer Salary', 'UPI', '15000', 'Nov 2026 Salary'],
+    ['2026-11-22', 'Treadmill Belt Repair', 'Maintenance', 'Cash', '1200', 'Technician visit'],
+    ['2026-11-23', 'Whey Protein Stock', 'Supplements', 'Card', '8500', '10 Jars received']
+  ];
+
+  const csvContent = [sampleHeaders.join(','), ...sampleRows.map(r => r.join(','))].join('\r\n');
+  downloadCsvBlob('sample_gym_expenses_template.csv', csvContent);
+  showNotification('📥 Sample CSV template downloaded! Is format me apna data fill karke import karein.', 'success');
+}
+
+// Normalize Date to YYYY-MM-DD
+function normalizeDateStr(raw) {
+  if (!raw) return TODAY_STR;
+  const cleaned = String(raw).trim().replace(/\./g, '-').replace(/\//g, '-');
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(cleaned)) {
+    const parts = cleaned.split('-');
+    return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+  }
+
+  // DD-MM-YYYY
+  if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(cleaned)) {
+    const parts = cleaned.split('-');
+    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+  }
+
+  // MM-DD-YYYY or other parseable date
+  const d = new Date(raw);
+  if (!isNaN(d.getTime())) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  return TODAY_STR;
+}
+
+// Smart CSV Parser
+function parseExpensesCSV(csvText) {
+  if (!csvText || !csvText.trim()) return [];
+
+  let cleanText = csvText.replace(/^\uFEFF/, '').trim();
+  const rawLines = cleanText.split(/\r?\n/).filter(line => line.trim().length > 0);
+  if (rawLines.length === 0) return [];
+
+  function parseCSVLine(line) {
+    const entries = [];
+    let insideQuote = false;
+    let entry = '';
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        if (insideQuote && line[i + 1] === '"') {
+          entry += '"';
+          i++;
+        } else {
+          insideQuote = !insideQuote;
+        }
+      } else if (char === ',' && !insideQuote) {
+        entries.push(entry.trim());
+        entry = '';
+      } else {
+        entry += char;
+      }
+    }
+    entries.push(entry.trim());
+    return entries;
+  }
+
+  const headerLine = parseCSVLine(rawLines[0]).map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  
+  let dateIdx = -1;
+  let titleIdx = -1;
+  let categoryIdx = -1;
+  let amountIdx = -1;
+  let modeIdx = -1;
+  let notesIdx = -1;
+
+  headerLine.forEach((h, idx) => {
+    if (h.includes('date') || h.includes('tareekh') || h.includes('time') || h.includes('dt')) dateIdx = idx;
+    else if (h.includes('title') || h.includes('desc') || h.includes('particular') || h.includes('item') || h.includes('name') || h.includes('naam') || h.includes('details')) titleIdx = idx;
+    else if (h.includes('cat') || h.includes('head') || h.includes('type')) categoryIdx = idx;
+    else if (h.includes('amount') || h.includes('debit') || h.includes('dr') || h.includes('rashi') || h.includes('cost') || h.includes('price') || h.includes('inr')) amountIdx = idx;
+    else if (h.includes('mode') || h.includes('payment') || h.includes('channel')) modeIdx = idx;
+    else if (h.includes('note') || h.includes('remark') || h.includes('comment') || h.includes('narration')) notesIdx = idx;
+  });
+
+  const parsedItems = [];
+  const startRow = (dateIdx !== -1 || amountIdx !== -1 || titleIdx !== -1) ? 1 : 0;
+
+  for (let i = startRow; i < rawLines.length; i++) {
+    const cols = parseCSVLine(rawLines[i]);
+    if (cols.length === 0) continue;
+
+    let rawAmount = amountIdx !== -1 ? cols[amountIdx] : cols[cols.length - 1];
+    let amount = 0;
+    if (rawAmount) {
+      const numMatch = String(rawAmount).replace(/,/g, '').match(/([0-9]+(?:\.[0-9]+)?)/);
+      if (numMatch) amount = parseFloat(numMatch[1]);
+    }
+
+    if (amount <= 0) continue;
+
+    let title = titleIdx !== -1 ? cols[titleIdx] : (cols[1] || 'Gym Expense');
+    let date = dateIdx !== -1 ? normalizeDateStr(cols[dateIdx]) : TODAY_STR;
+    let paymentMode = modeIdx !== -1 ? cols[modeIdx] : 'UPI';
+    let notes = notesIdx !== -1 ? cols[notesIdx] : 'CSV Imported';
+    let category = categoryIdx !== -1 ? cols[categoryIdx] : 'Other';
+
+    if (!category || category === 'Other') {
+      const smart = parseNaturalExpenseText(title);
+      if (smart && smart.category !== 'Other') category = smart.category;
+    }
+
+    parsedItems.push({
+      date,
+      title: title || 'Gym Expense',
+      category: category || 'Other',
+      paymentMode: paymentMode || 'UPI',
+      amount,
+      notes: notes || 'CSV Import'
+    });
+  }
+
+  return parsedItems;
+}
+
+// Smart PDF Parser using PDF.js
+async function parseExpensesPDF(file) {
+  if (!window.pdfjsLib) {
+    throw new Error('PDF.js library load nahi ho saki. Kripya internet connection check karein ya CSV use karein.');
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const extractedLines = [];
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    
+    const lineMap = new Map();
+    textContent.items.forEach(item => {
+      const y = Math.round(item.transform[5]);
+      if (!lineMap.has(y)) lineMap.set(y, []);
+      lineMap.get(y).push(item.str);
+    });
+
+    const sortedY = Array.from(lineMap.keys()).sort((a, b) => b - a);
+    sortedY.forEach(y => {
+      const lineStr = lineMap.get(y).join(' ').trim();
+      if (lineStr.length > 0) extractedLines.push(lineStr);
+    });
+  }
+
+  const parsedItems = [];
+  const dateRegex = /\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})\b/;
+  const amountRegex = /(?:₹|rs\.?|inr)?\s*([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]{2})?|[0-9]+(?:\.[0-9]{2})?)\b/i;
+
+  extractedLines.forEach(line => {
+    const dateMatch = line.match(dateRegex);
+    const amountMatch = line.match(amountRegex);
+
+    if (dateMatch && amountMatch) {
+      const rawAmt = amountMatch[1].replace(/,/g, '');
+      const amount = parseFloat(rawAmt);
+      if (amount > 0 && amount < 10000000) {
+        const date = normalizeDateStr(dateMatch[1]);
+        
+        let title = line
+          .replace(dateMatch[0], '')
+          .replace(amountMatch[0], '')
+          .replace(/[|\-,;]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        if (!title || title.length < 3) title = 'Bank / Statement Debit';
+        
+        const smart = parseNaturalExpenseText(title);
+
+        parsedItems.push({
+          date,
+          title,
+          category: smart.category || 'Other',
+          paymentMode: smart.paymentMode || 'Bank Transfer',
+          amount,
+          notes: 'PDF Statement Import'
+        });
+      }
+    }
+  });
+
+  return parsedItems;
+}
+
+// Handle File Upload Event (CSV or PDF)
+async function handleExpenseFileUpload(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const statusEl = document.getElementById('import-file-status');
+  if (statusEl) {
+    statusEl.innerHTML = `<span class="text-orange-600 font-bold"><i class="fa-solid fa-spinner fa-spin mr-1"></i> File process ho rahi hai: ${file.name}...</span>`;
+  }
+
+  try {
+    let items = [];
+    const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+
+    if (isPdf) {
+      items = await parseExpensesPDF(file);
+    } else {
+      const text = await file.text();
+      items = parseExpensesCSV(text);
+    }
+
+    if (items.length === 0) {
+      if (statusEl) {
+        statusEl.innerHTML = `<span class="text-rose-600 font-bold">⚠️ Koi valid expense record nahi mila. Kripya file format check karein ya Sample CSV template dekhein.</span>`;
+      }
+      return;
+    }
+
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="text-emerald-700 font-bold">✅ File read successful: ${items.length} transactions mili!</span>`;
+    }
+
+    renderImportPreview(items);
+  } catch (err) {
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="text-rose-600 font-bold">❌ Error: ${err.message}</span>`;
+    }
+  }
+}
+
+// Handle Pasted Text Parsing
+function parsePastedExpenseText() {
+  const textarea = document.getElementById('import-paste-text');
+  if (!textarea || !textarea.value.trim()) {
+    showNotification('Kripya pehle text paste karein!', 'warning');
+    return;
+  }
+
+  const rawText = textarea.value.trim();
+  let items = parseExpensesCSV(rawText);
+
+  if (items.length === 0) {
+    const lines = rawText.split(/\r?\n/).filter(l => l.trim().length > 0);
+    lines.forEach(line => {
+      const parsed = parseNaturalExpenseText(line);
+      if (parsed && parsed.amount > 0) {
+        items.push(parsed);
+      }
+    });
+  }
+
+  if (items.length === 0) {
+    showNotification('Koi valid transactions detect nahi huin. Kripya Amount aur Title likhein.', 'warning');
+    return;
+  }
+
+  renderImportPreview(items);
+}
+
+// Render Preview Table
+function renderImportPreview(items) {
+  currentImportQueue = items;
+
+  const previewSection = document.getElementById('import-preview-section');
+  const previewTbody = document.getElementById('import-preview-tbody');
+  const previewCount = document.getElementById('import-preview-count');
+  const previewTotal = document.getElementById('import-preview-total');
+  const confirmBtn = document.getElementById('btn-confirm-import');
+
+  if (!previewSection || !previewTbody) return;
+
+  const totalSum = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+  if (previewCount) previewCount.textContent = `${items.length} records ready to import`;
+  if (previewTotal) previewTotal.textContent = `Total: ₹${totalSum.toLocaleString('en-IN')}`;
+  if (confirmBtn) {
+    confirmBtn.disabled = items.length === 0;
+    confirmBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>Confirm & Import All (${items.length} Entries)</span>`;
+  }
+
+  const categories = ['Rent', 'Electricity', 'Trainer Salary', 'Maintenance', 'Equipment', 'Supplements', 'Marketing', 'Other'];
+
+  previewTbody.innerHTML = items.map((item, idx) => `
+    <tr class="hover:bg-slate-50 transition border-b border-slate-100 text-xs">
+      <td class="py-2 px-3 text-slate-600">${item.date}</td>
+      <td class="py-2 px-3 font-bold text-slate-900">${item.title}</td>
+      <td class="py-2 px-3">
+        <select onchange="updateQueueCategory(${idx}, this.value)" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-800">
+          ${categories.map(cat => `<option value="${cat}" ${cat === item.category ? 'selected' : ''}>${cat}</option>`).join('')}
+        </select>
+      </td>
+      <td class="py-2 px-3 text-slate-600 text-[11px]">${item.paymentMode}</td>
+      <td class="py-2 px-3 text-right font-bold text-rose-600 font-mono">₹${item.amount.toLocaleString('en-IN')}</td>
+      <td class="py-2 px-2 text-center">
+        <button type="button" onclick="removeFromImportQueue(${idx})" class="w-6 h-6 rounded text-slate-400 hover:text-rose-600 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark text-xs"></i>
+        </button>
+      </td>
+    </tr>
+  `).join('');
+
+  previewSection.classList.remove('hidden');
+}
+
+function updateQueueCategory(idx, newCat) {
+  if (currentImportQueue[idx]) {
+    currentImportQueue[idx].category = newCat;
+  }
+}
+
+function removeFromImportQueue(idx) {
+  currentImportQueue.splice(idx, 1);
+  if (currentImportQueue.length === 0) {
+    resetImportPreview();
+  } else {
+    renderImportPreview(currentImportQueue);
+  }
+}
+
+// Execute Bulk Import to Backend & Local Storage
+async function executeBulkImport() {
+  if (!currentImportQueue || currentImportQueue.length === 0) return;
+
+  const itemsToImport = [...currentImportQueue];
+  const confirmBtn = document.getElementById('btn-confirm-import');
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Importing...</span>`;
+  }
+
+  try {
+    const res = await fetch('/api/expenses/bulk-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(itemsToImport)
+    });
+
+    const result = await res.json();
+    if (result.success) {
+      const existing = getExpenses();
+      const newItems = result.expenses || itemsToImport.map((item, i) => ({
+        id: `exp-${Date.now()}-${i}`,
+        ...item
+      }));
+      saveExpenses([...newItems, ...existing]);
+
+      showNotification(`🎉 Shabaash! ${result.count} expenses successfully import ho gaye (Total: ₹${result.totalAmount.toLocaleString('en-IN')})!`, 'success');
+      closeImportExpensesModal();
+      renderExpensesView();
+    } else {
+      showNotification('Import failed: ' + (result.error || 'Server error'), 'warning');
+    }
+  } catch (err) {
+    showNotification('Error importing: ' + err.message, 'warning');
+  } finally {
+    if (confirmBtn) {
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = `<i class="fa-solid fa-circle-check"></i> <span>Confirm & Import All</span>`;
+    }
+  }
+}
+
+// Setup Drag & Drop listener for #import-drop-zone
+document.addEventListener('DOMContentLoaded', () => {
+  const dropZone = document.getElementById('import-drop-zone');
+  if (!dropZone) return;
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropZone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.add('border-orange-500', 'bg-orange-50/50');
+    }, false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.classList.remove('border-orange-500', 'bg-orange-50/50');
+    }, false);
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files && files.length > 0) {
+      const mockEvent = { target: { files: [files[0]] } };
+      handleExpenseFileUpload(mockEvent);
+    }
+  }, false);
+});
+
+
 

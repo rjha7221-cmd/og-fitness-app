@@ -49,6 +49,14 @@
   <!-- HTML5 QR Code Scanner Library (CDN) -->
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
+  <!-- PDF.js Library for client-side PDF Statement text extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+
   <!-- Custom Styles (SolarZent White/Light Theme) -->
   <link rel="stylesheet" href="css/portal.css">
 </head>
@@ -1005,6 +1013,14 @@
             </div>
 
             <div class="flex items-center gap-2 flex-wrap">
+              <button onclick="downloadSampleExpenseCSV()" class="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-200" title="Download Sample CSV Template">
+                <i class="fa-solid fa-file-arrow-down text-slate-500"></i>
+                <span class="hidden sm:inline">Sample CSV</span>
+              </button>
+              <button onclick="openImportExpensesModal()" class="px-3.5 py-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-bold flex items-center gap-1.5 transition border border-orange-200 shadow-2xs" title="Bulk Import CSV or PDF Statement">
+                <i class="fa-solid fa-file-import text-orange-600"></i>
+                <span>Import Bulk (CSV / PDF)</span>
+              </button>
               <button onclick="exportExpensesToCSV()" class="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition border border-slate-200" title="Export as CSV sheet">
                 <i class="fa-solid fa-file-csv text-emerald-600"></i>
                 <span>Export CSV</span>
@@ -1013,6 +1029,36 @@
                 <i class="fa-solid fa-plus"></i>
                 <span>Add Expense (Kharcha Jodein)</span>
               </button>
+            </div>
+          </div>
+
+          <!-- Smart Quick Expense Bar: Write or Speak to Add Expense ("Likh kar / Bol kar jodein") -->
+          <div class="p-3.5 rounded-2xl bg-gradient-to-r from-orange-500/5 via-amber-500/5 to-rose-500/5 border border-orange-200/80 shadow-2xs space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                <i class="fa-solid fa-wand-magic-sparkles text-orange-600"></i>
+                <span>Likh kar ya Bol kar jodein (Quick Natural & Voice Entry):</span>
+              </span>
+              <span class="text-[10px] text-slate-400 font-mono hidden sm:inline">e.g. "Bijli bill 3500 cash" ya "Trainer salary 15000 UPI"</span>
+            </div>
+            
+            <form onsubmit="handleQuickExpenseSubmit(event)" class="flex items-center gap-2">
+              <div class="relative flex-1">
+                <i class="fa-solid fa-pen-fancy absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+                <input type="text" id="quick-expense-input" placeholder='Yahan likhein: jaise "Electricity bill 3500 cash" ya "Trainer salary 15000 UPI"...' class="w-full bg-white border border-slate-200 focus:border-orange-500 rounded-xl pl-9 pr-10 py-2.5 text-xs sm:text-sm text-slate-900 focus:outline-none transition font-medium shadow-2xs">
+                <button type="button" onclick="toggleExpenseVoiceInput()" id="btn-expense-voice" title="Bol kar likhein (Voice Mic Input)" class="absolute right-2.5 top-2 w-7 h-7 rounded-lg bg-slate-100 hover:bg-orange-100 text-slate-600 hover:text-orange-600 flex items-center justify-center transition">
+                  <i class="fa-solid fa-microphone text-xs"></i>
+                </button>
+              </div>
+
+              <button type="submit" class="btn-solar px-4 py-2.5 rounded-xl font-bold text-xs uppercase flex items-center gap-1.5 shadow-sm whitespace-nowrap">
+                <i class="fa-solid fa-plus"></i>
+                <span>Quick Add</span>
+              </button>
+            </form>
+            <div id="quick-expense-voice-status" class="hidden text-[11px] font-semibold text-orange-600 animate-pulse flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-orange-600"></span>
+              <span>🎙️ Sun rahe hain... Kripya boliye (e.g. "Equipment repair 2000 cash")...</span>
             </div>
           </div>
 
@@ -1735,6 +1781,127 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- 7. Bulk Import Expenses Modal (CSV & PDF) -->
+  <div id="import-expenses-modal" class="portal-modal fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+    <div class="solar-card w-full max-w-2xl p-6 sm:p-7 space-y-5 shadow-2xl relative max-h-[90vh] flex flex-col">
+      <button onclick="closeImportExpensesModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-700">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 uppercase tracking-wider">
+            Bulk Data Import
+          </span>
+          <span class="text-[11px] text-slate-400 font-mono">CSV, Excel & PDF Statements</span>
+        </div>
+        <h3 class="text-xl font-bold text-slate-900 mt-1">Bulk Gym Expenses Import</h3>
+        <p class="text-xs text-slate-500">Apne bank statement, PDF bill ya Excel CSV file ko upload karein ya text paste karein.</p>
+      </div>
+
+      <!-- Mode Tabs: File Upload vs Text Paste -->
+      <div class="flex border-b border-slate-200 gap-4">
+        <button type="button" onclick="switchImportTab('file')" id="import-tab-btn-file" class="pb-2.5 text-xs font-bold border-b-2 border-orange-500 text-orange-600 transition flex items-center gap-2">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span>Upload File (CSV / PDF)</span>
+        </button>
+        <button type="button" onclick="switchImportTab('paste')" id="import-tab-btn-paste" class="pb-2.5 text-xs font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center gap-2">
+          <i class="fa-solid fa-paste"></i>
+          <span>Paste Statement / Text</span>
+        </button>
+        <div class="ml-auto">
+          <button type="button" onclick="downloadSampleExpenseCSV()" class="text-[11px] font-bold text-slate-500 hover:text-orange-600 flex items-center gap-1 transition">
+            <i class="fa-solid fa-download text-xs"></i>
+            <span>Sample Template</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable Content Area -->
+      <div class="overflow-y-auto space-y-4 pr-1 flex-1">
+        
+        <!-- Tab 1: File Upload (CSV & PDF) -->
+        <div id="import-panel-file" class="space-y-3">
+          <div id="import-drop-zone" class="border-2 border-dashed border-slate-300 hover:border-orange-500 rounded-2xl p-6 text-center transition cursor-pointer bg-slate-50/50 hover:bg-orange-50/30">
+            <div class="w-12 h-12 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center text-xl mx-auto mb-2 shadow-2xs">
+              <i class="fa-solid fa-file-arrow-up"></i>
+            </div>
+            <h4 class="text-sm font-bold text-slate-800">CSV ya PDF file yahan drag & drop karein</h4>
+            <p class="text-xs text-slate-500 mt-1">Supports: <b>.csv</b> (Excel/Google Sheets) aur <b>.pdf</b> (Bank Statements / Receipts)</p>
+            
+            <div class="pt-3">
+              <label class="btn-solar px-4 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-2 cursor-pointer shadow-sm">
+                <i class="fa-solid fa-folder-open"></i>
+                <span>Choose File from Computer</span>
+                <input type="file" id="import-file-input" accept=".csv, .pdf, text/csv, application/pdf, text/plain" class="hidden" onchange="handleExpenseFileUpload(event)">
+              </label>
+            </div>
+          </div>
+          <div id="import-file-status" class="text-xs text-slate-600 font-medium text-center"></div>
+        </div>
+
+        <!-- Tab 2: Paste Statement Text -->
+        <div id="import-panel-paste" class="space-y-3 hidden">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              Bank Statement ya Bill ka text yahan paste karein:
+            </label>
+            <textarea id="import-paste-text" rows="5" placeholder="Date, Title, Amount, Mode...&#10;Jaise:&#10;2026-11-20, Bijli Bill, Electricity, 3500, UPI&#10;2026-11-21, Gym Rent, Rent, 25000, Bank Transfer" class="w-full bg-slate-50 border border-slate-200 focus:border-orange-500 focus:bg-white rounded-xl p-3 text-xs font-mono text-slate-800 focus:outline-none transition"></textarea>
+          </div>
+          <button type="button" onclick="parsePastedExpenseText()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+            <i class="fa-solid fa-wand-magic-sparkles text-orange-600"></i>
+            <span>Scan & Extract Transactions</span>
+          </button>
+        </div>
+
+        <!-- Preview Section (Visible after file or text parsing) -->
+        <div id="import-preview-section" class="space-y-3 pt-2 border-t border-slate-200 hidden">
+          <div class="flex items-center justify-between">
+            <div>
+              <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-table-list text-orange-600"></i>
+                <span>Detected Transactions Preview</span>
+              </h4>
+              <p id="import-preview-count" class="text-[11px] text-slate-500 font-medium">0 items found</p>
+            </div>
+            <div id="import-preview-total" class="font-mono text-sm font-black text-rose-600">₹0</div>
+          </div>
+
+          <div class="overflow-x-auto max-h-56 rounded-xl border border-slate-200">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px] sticky top-0">
+                <tr>
+                  <th class="py-2 px-3">Date</th>
+                  <th class="py-2 px-3">Title / Particulars</th>
+                  <th class="py-2 px-3">Category</th>
+                  <th class="py-2 px-3">Mode</th>
+                  <th class="py-2 px-3 text-right">Amount (₹)</th>
+                  <th class="py-2 px-2 text-center"></th>
+                </tr>
+              </thead>
+              <tbody id="import-preview-tbody" class="divide-y divide-slate-100 font-mono">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="pt-3 border-t border-slate-200 flex items-center justify-between gap-3">
+        <button type="button" onclick="closeImportExpensesModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition">
+          Cancel
+        </button>
+        <button type="button" id="btn-confirm-import" onclick="executeBulkImport()" disabled class="btn-solar px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>Confirm & Import All</span>
+        </button>
+      </div>
+
     </div>
   </div>
 
